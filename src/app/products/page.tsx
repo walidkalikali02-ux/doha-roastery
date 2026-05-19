@@ -5,6 +5,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ProductsClient from './ProductsClient'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Shop Specialty Coffee Qatar — Coffee Beans, Capsules & Drip Pouches',
   description:
