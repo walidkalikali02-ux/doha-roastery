@@ -84,8 +84,28 @@ export default function CheckoutPage() {
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) throw itemsErr
 
+      // Fire order notification (admin email + customer email + realtime dashboard)
+      supabase.functions.invoke('order-notification', {
+        body: {
+          order_id: order.id,
+          order_number: orderNum,
+          guest_email: form.email,
+          customer_name: `${form.firstName} ${form.lastName}`,
+          total: grandTotal,
+          items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+          shipping_address: {
+            first_name: form.firstName,
+            last_name: form.lastName,
+            phone: form.phone,
+            address: form.address,
+            city: form.city,
+            area: form.area,
+          },
+        },
+      }).catch(() => {}) // non-blocking — don't fail the order if notification fails
+
       clear()
-      router.push(`/checkout/success?order=${orderNum}&total=${grandTotal.toFixed(2)}`)
+      router.push(`/checkout/success?order=${orderNum}&total=${grandTotal.toFixed(2)}&email=${encodeURIComponent(form.email)}`)
     } catch (e: unknown) {
       setError((e as Error).message ?? t('حدث خطأ. حاول مجدداً.', 'Something went wrong. Please try again.'))
     } finally {

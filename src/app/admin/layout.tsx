@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { LayoutDashboard, Package, ShoppingCart, ArrowRight, Loader } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
+import AdminNotificationBell from '@/components/AdminNotificationBell'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { t, dir } = useLang()
@@ -92,7 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               ? pathname === '/admin'
               : pathname.startsWith(n.href))?.label}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <AdminNotificationBell />
             <div className="w-2 h-2 bg-green-500 rounded-full" />
             <span className="text-xs text-charcoal/40">{t('متصل', 'Online')}</span>
           </div>

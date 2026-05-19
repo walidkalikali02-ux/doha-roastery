@@ -12,7 +12,8 @@ function SuccessContent() {
   const { t, dir } = useLang()
   const params = useSearchParams()
   const orderNum = params.get('order') ?? '—'
-  const total = params.get('total') ?? '0'
+  const total    = params.get('total') ?? '0'
+  const email    = params.get('email') ?? ''
 
   return (
     <>
@@ -34,12 +35,17 @@ function SuccessContent() {
           <h1 className="text-4xl md:text-5xl font-light text-charcoal mb-4">
             {t('شكراً لك!', 'Thank You!')}
           </h1>
-          <p className="text-charcoal/60 text-lg mb-10">
+          <p className="text-charcoal/60 text-lg mb-3">
             {t(
               'تم استلام طلبك وسيتم التواصل معك قريباً.',
               'Your order has been received and we\'ll be in touch shortly.'
             )}
           </p>
+          {email && (
+            <p className="text-sm text-sand mb-10">
+              {t(`تم إرسال تأكيد الطلب إلى ${email}`, `Order confirmation sent to ${email}`)}
+            </p>
+          )}
 
           {/* Order details card */}
           <div className="relative bg-charcoal text-cream p-8 mb-10 overflow-hidden text-start">
