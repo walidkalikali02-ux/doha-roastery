@@ -9,9 +9,9 @@ import ImageUpload from '@/components/ImageUpload'
 interface Props { initialProducts: Product[] }
 
 const EMPTY_PRODUCT: Omit<Product, 'id' | 'created_at' | 'updated_at'> = {
-  name: '', sku: '', category: '', description: '', price: 0,
+  name: '', name_ar: '', sku: '', category: '', description: '', description_ar: '', price: 0,
   compare_at_price: null, cost_per_item: null, quantity: 0,
-  low_stock_threshold: 10, status: 'draft', image_url: '', tags: [], in_stock: true,
+  low_stock_threshold: 10, status: 'draft', image_url: '', tags: [], in_stock: true, weight: '',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -103,10 +103,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
   }
 
   function openEdit(p: Product) {
-    setForm({ name: p.name, sku: p.sku, category: p.category, description: p.description,
+    setForm({ name: p.name, name_ar: p.name_ar ?? '', sku: p.sku, category: p.category,
+      description: p.description, description_ar: p.description_ar ?? '',
       price: p.price, compare_at_price: p.compare_at_price, cost_per_item: p.cost_per_item,
       quantity: p.quantity, low_stock_threshold: p.low_stock_threshold, status: p.status,
-      image_url: p.image_url, tags: p.tags, in_stock: p.in_stock,
+      image_url: p.image_url, tags: p.tags, in_stock: p.in_stock, weight: p.weight ?? '',
     })
     setEditingId(p.id); setModal('edit'); setError(null)
   }
@@ -316,8 +317,12 @@ export default function AdminProductsClient({ initialProducts }: Props) {
 
             <div className="p-6 grid grid-cols-2 gap-5">
               <div className="col-span-2">
-                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('الاسم *', 'Name *')}</label>
-                <input value={form.name} onChange={F('name')} className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
+                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">Name (English) *</label>
+                <input value={form.name} onChange={F('name')} placeholder="e.g. Brazil Dark Roast" className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">الاسم (عربي)</label>
+                <input dir="rtl" value={form.name_ar ?? ''} onChange={F('name_ar')} placeholder="مثال: تحميص برازيلي غامق" className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
               </div>
               <div>
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('الرمز', 'SKU')}</label>
@@ -362,8 +367,12 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                 <ImageUpload value={form.image_url} onChange={url => setForm({ ...form, image_url: url })} />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('الوصف', 'Description')}</label>
-                <textarea rows={3} value={form.description ?? ''} onChange={F('description')} className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
+                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">Description (English)</label>
+                <textarea rows={3} value={form.description ?? ''} onChange={F('description')} placeholder="Describe the product in English..." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">الوصف (عربي)</label>
+                <textarea dir="rtl" rows={3} value={form.description_ar ?? ''} onChange={F('description_ar')} placeholder="اكتب وصف المنتج بالعربي..." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
               </div>
               {error && <div className="col-span-2 text-red-500 text-xs">{error}</div>}
             </div>

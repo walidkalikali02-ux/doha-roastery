@@ -1,9 +1,12 @@
 export interface Product {
   id: string
   name: string
+  name_ar: string | null
+  weight: string | null
   sku: string | null
   category: string | null
   description: string | null
+  description_ar: string | null
   price: number
   compare_at_price: number | null
   cost_per_item: number | null

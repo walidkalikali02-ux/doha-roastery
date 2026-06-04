@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { ChevronDown, Search, RefreshCw } from 'lucide-react'
-import { useLang } from '@/contexts/LanguageContext'
+import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
 
@@ -19,15 +19,6 @@ const STATUS_COLORS: Record<string, string> = {
   payment_failed: 'bg-red-50 text-red-700 border-red-200',
 }
 
-const STATUS_AR: Record<string, string> = {
-  pending: 'معلق',
-  confirmed: 'مؤكد',
-  processing: 'قيد التجهيز',
-  shipped: 'تم الشحن',
-  delivered: 'تم التسليم',
-  cancelled: 'ملغي',
-  payment_failed: 'فشل الدفع',
-}
 
 export default function AdminOrdersClient({ initialOrders }: Props) {
   const { t, dir } = useLang()
@@ -93,7 +84,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
         >
           <option value="all">{t('جميع الحالات', 'All Statuses')}</option>
           {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>{dir === 'rtl' ? STATUS_AR[s] : s}</option>
+            <option key={s} value={s}>{t(STATUS_LABELS[s]?.ar ?? s, STATUS_LABELS[s]?.en ?? s)}</option>
           ))}
         </select>
       </div>
@@ -111,7 +102,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                 statusFilter === s ? STATUS_COLORS[s] : 'border-sand/30 text-charcoal/50 hover:border-charcoal/30'
               }`}
             >
-              {dir === 'rtl' ? STATUS_AR[s] : s} ({count})
+              {t(STATUS_LABELS[s]?.ar ?? s, STATUS_LABELS[s]?.en ?? s)} ({count})
             </button>
           )
         })}
@@ -141,7 +132,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                     {order.order_number ?? `#${order.id.slice(0, 8)}`}
                   </span>
                   <span className={`text-[10px] tracking-widest uppercase px-2 py-0.5 border ${STATUS_COLORS[order.status]}`}>
-                    {dir === 'rtl' ? STATUS_AR[order.status] : order.status}
+                    {t(STATUS_LABELS[order.status]?.ar ?? order.status, STATUS_LABELS[order.status]?.en ?? order.status)}
                   </span>
                 </div>
                 <p className="text-xs text-charcoal/40 mt-0.5">
@@ -200,7 +191,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                     >
                       {updating === order.id && s === order.status
                         ? <RefreshCw size={10} className="animate-spin" />
-                        : (dir === 'rtl' ? STATUS_AR[s] : s)
+                        : t(STATUS_LABELS[s]?.ar ?? s, STATUS_LABELS[s]?.en ?? s)
                       }
                     </button>
                   ))}

@@ -2,18 +2,32 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 export interface CartItem {
-  id: string
-  name: string
+  cartKey: string      // unique key: `${id}-${grind}`
+  id: string           // actual Supabase product ID
+  name: string         // base product name (no weight suffix)
+  weight: string       // e.g. "250g", "" for non-weight products
+  grind: string        // "whole-bean" | "espresso" | "filter" | "moka" | "french-press" | ""
+  notes: string
   price: number
   image_url: string | null
   quantity: number
 }
 
+interface AddItemInput {
+  id: string
+  name: string
+  weight: string
+  grind: string
+  notes: string
+  price: number
+  image_url: string | null
+}
+
 interface CartContextType {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, 'quantity'>) => void
-  removeItem: (id: string) => void
-  updateQty: (id: string, qty: number) => void
+  addItem: (item: AddItemInput) => void
+  removeItem: (cartKey: string) => void
+  updateQty: (cartKey: string, qty: number) => void
   clear: () => void
   total: number
   count: number
@@ -35,33 +49,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('doha_cart')
+      const stored = localStorage.getItem('doha_cart_v2')
       if (stored) setItems(JSON.parse(stored))
     } catch {}
     setReady(true)
   }, [])
 
   useEffect(() => {
-    if (ready) localStorage.setItem('doha_cart', JSON.stringify(items))
+    if (ready) localStorage.setItem('doha_cart_v2', JSON.stringify(items))
   }, [items, ready])
 
-  function addItem(item: Omit<CartItem, 'quantity'>) {
+  function addItem(item: AddItemInput) {
+    const cartKey = `${item.id}-${item.grind}`
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id)
+      const existing = prev.find((i) => i.cartKey === cartKey)
       if (existing) {
-        return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
+        return prev.map((i) =>
+          i.cartKey === cartKey
+            ? { ...i, quantity: i.quantity + 1, notes: item.notes || i.notes }
+            : i
+        )
       }
-      return [...prev, { ...item, quantity: 1 }]
+      return [...prev, { ...item, cartKey, quantity: 1 }]
     })
   }
 
-  function removeItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+  function removeItem(cartKey: string) {
+    setItems((prev) => prev.filter((i) => i.cartKey !== cartKey))
   }
 
-  function updateQty(id: string, qty: number) {
-    if (qty < 1) { removeItem(id); return }
-    setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity: qty } : i))
+  function updateQty(cartKey: string, qty: number) {
+    if (qty < 1) { removeItem(cartKey); return }
+    setItems((prev) => prev.map((i) => i.cartKey === cartKey ? { ...i, quantity: qty } : i))
   }
 
   function clear() { setItems([]) }

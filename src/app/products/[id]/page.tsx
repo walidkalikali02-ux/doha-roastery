@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import ProductDetailClient from './ProductDetailClient'
+import ProductDetailClient, { WeightVariant } from './ProductDetailClient'
 
 const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 const BRAND = 'Doha Roastery | Qatar'
@@ -78,27 +78,53 @@ export default async function ProductPage({
 
   if (!product) notFound()
 
+  const p = product as Product
+
+  // Fetch all weight variants of the same product (same name, has weight column)
+  let weightVariants: WeightVariant[] = []
+  if (p.weight) {
+    const { data: siblings } = await supabase
+      .from('ecommerce_products')
+      .select('id, weight, price, in_stock, quantity')
+      .eq('status', 'active')
+      .eq('name', p.name)
+
+    if (siblings) {
+      weightVariants = (siblings as Array<{ id: string; weight: string; price: number; in_stock: boolean; quantity: number }>)
+        .filter((s) => s.weight)
+        .map((s) => ({
+          id: s.id,
+          weight: s.weight,
+          price: Number(s.price),
+          in_stock: Boolean(s.in_stock),
+          quantity: Number(s.quantity),
+        }))
+    }
+  }
+
+  // Related products: same category, different name, exclude weight siblings
   const { data: related } = await supabase
     .from('ecommerce_products')
     .select('*')
     .eq('status', 'active')
-    .eq('category', (product as Product).category ?? '')
+    .eq('category', p.category ?? '')
     .neq('id', id)
+    .neq('name', p.name)
     .limit(4)
 
-  /* JSON-LD structured data for Google rich results */
+  /* JSON-LD */
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: (product as Product).name,
-    description: (product as Product).description ?? '',
-    image: (product as Product).image_url ?? '',
+    name: p.name,
+    description: p.description ?? '',
+    image: p.image_url ?? '',
     brand: { '@type': 'Brand', name: 'Doha Roastery' },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'QAR',
-      price: (product as Product).price,
-      availability: (product as Product).in_stock
+      price: p.price,
+      availability: p.in_stock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       seller: { '@type': 'Organization', name: 'Doha Roastery' },
@@ -113,7 +139,11 @@ export default async function ProductPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Header />
-      <ProductDetailClient product={product as Product} related={(related as Product[]) ?? []} />
+      <ProductDetailClient
+        product={p}
+        weightVariants={weightVariants}
+        related={(related as Product[]) ?? []}
+      />
       <Footer />
     </>
   )

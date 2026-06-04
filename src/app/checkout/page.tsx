@@ -92,7 +92,7 @@ export default function CheckoutPage() {
           guest_email: form.email,
           customer_name: `${form.firstName} ${form.lastName}`,
           total: grandTotal,
-          items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+          items: items.map(i => ({ name: `${i.name}${i.weight ? ` – ${i.weight}` : ''}${i.grind ? ` (${i.grind})` : ''}`, quantity: i.quantity, price: i.price })),
           shipping_address: {
             first_name: form.firstName,
             last_name: form.lastName,
@@ -279,7 +279,7 @@ export default function CheckoutPage() {
                   {/* Items summary */}
                   <div className="border border-sand/20 bg-white p-5 space-y-3">
                     {items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3">
+                      <div key={item.cartKey} className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-cream-dark flex-shrink-0">
                           {item.image_url
                             ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
@@ -288,7 +288,10 @@ export default function CheckoutPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-charcoal truncate">{item.name}</p>
-                          <p className="text-xs text-charcoal/40">× {item.quantity}</p>
+                          <p className="text-xs text-charcoal/40">
+                            {item.weight && <span>{item.weight} · </span>}
+                            × {item.quantity}
+                          </p>
                         </div>
                         <p className="text-sm text-charcoal flex-shrink-0">
                           {(item.price * item.quantity).toFixed(2)} {t('ر.ق', 'QAR')}
@@ -333,7 +336,7 @@ export default function CheckoutPage() {
 
                 <div className="space-y-3 mb-5">
                   {items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
+                    <div key={item.cartKey} className="flex items-center gap-3">
                       <div className="relative w-10 h-10 bg-cream-dark flex-shrink-0">
                         {item.image_url
                           ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
@@ -343,7 +346,9 @@ export default function CheckoutPage() {
                           {item.quantity}
                         </span>
                       </div>
-                      <p className="flex-1 text-xs text-charcoal line-clamp-1">{item.name}</p>
+                      <p className="flex-1 text-xs text-charcoal line-clamp-1">
+                        {item.name}{item.weight ? ` – ${item.weight}` : ''}
+                      </p>
                       <p className="text-xs text-charcoal flex-shrink-0">
                         {(item.price * item.quantity).toFixed(2)}
                       </p>

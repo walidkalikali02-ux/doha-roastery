@@ -8,29 +8,76 @@ import { Product } from '@/lib/types'
 import ProductCard from '@/components/ProductCard'
 import GeometricPattern from '@/components/GeometricPattern'
 
+export interface WeightVariant {
+  id: string
+  weight: string
+  price: number
+  in_stock: boolean
+  quantity: number
+}
+
 interface Props {
   product: Product
+  weightVariants: WeightVariant[]
   related: Product[]
 }
 
-export default function ProductDetailClient({ product, related }: Props) {
-  const { t, dir } = useLang()
+const WEIGHT_ORDER = ['100g', '250g', '500g', '1kg']
+
+const GRIND_OPTIONS = [
+  { value: 'whole-bean',   ar: 'حبوب كاملة', en: 'Whole Bean' },
+  { value: 'espresso',     ar: 'إسبريسو',    en: 'Espresso' },
+  { value: 'filter',       ar: 'فلتر',        en: 'Filter' },
+  { value: 'moka',         ar: 'موكا',        en: 'Moka Pot' },
+  { value: 'french-press', ar: 'فرنش برس',   en: 'French Press' },
+]
+
+export default function ProductDetailClient({ product, weightVariants, related }: Props) {
+  const { t, dir, lang } = useLang()
   const { addItem } = useCart()
+
+  const isWeightProduct = weightVariants.length > 0
+  const isCoffeeBeans   = product.category === 'Coffee Beans'
+
+  const [selectedVariantId, setSelectedVariantId] = useState(product.id)
+  const [grind, setGrind] = useState('whole-bean')
+  const [notes, setNotes] = useState('')
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
 
-  const isOutOfStock = !product.in_stock || product.quantity === 0
-  const hasDiscount = product.compare_at_price && product.compare_at_price > product.price
-  const discountPct = hasDiscount
+  const selectedVariant = isWeightProduct
+    ? (weightVariants.find((v) => v.id === selectedVariantId) ?? weightVariants[0])
+    : null
+
+  const displayPrice    = selectedVariant ? selectedVariant.price    : product.price
+  const displayInStock  = selectedVariant
+    ? selectedVariant.in_stock && selectedVariant.quantity > 0
+    : product.in_stock && product.quantity > 0
+  const displayQuantity = selectedVariant ? selectedVariant.quantity : product.quantity
+
+  const isOutOfStock = !displayInStock
+  const hasDiscount  = !isWeightProduct && !!product.compare_at_price && product.compare_at_price > product.price
+  const discountPct  = hasDiscount
     ? Math.round(((product.compare_at_price! - product.price) / product.compare_at_price!) * 100)
     : 0
 
+  const orderedVariants = [...weightVariants].sort(
+    (a, b) => WEIGHT_ORDER.indexOf(a.weight) - WEIGHT_ORDER.indexOf(b.weight)
+  )
+
   function handleAdd() {
+    const itemId     = selectedVariant ? selectedVariant.id       : product.id
+    const itemWeight = selectedVariant ? selectedVariant.weight   : (product.weight ?? '')
+    const itemPrice  = selectedVariant ? selectedVariant.price    : product.price
+
     for (let i = 0; i < qty; i++) {
       addItem({
-        id: product.id,
+        id: itemId,
         name: product.name,
-        price: product.price,
+        weight: itemWeight,
+        grind: isCoffeeBeans ? grind : '',
+        notes,
+        price: itemPrice,
         image_url: product.image_url,
       })
     }
@@ -46,18 +93,20 @@ export default function ProductDetailClient({ product, related }: Props) {
         <ChevronRight size={12} className={dir === 'rtl' ? 'rotate-180' : ''} />
         <Link href="/products" className="hover:text-sand transition-colors">{t('المنتجات', 'Products')}</Link>
         <ChevronRight size={12} className={dir === 'rtl' ? 'rotate-180' : ''} />
-        <span className="text-charcoal truncate max-w-[160px]">{product.name}</span>
+        <span className="text-charcoal truncate max-w-[200px]">
+          {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+        </span>
       </div>
 
       {/* Product section */}
       <section className="max-w-7xl mx-auto px-6 py-8 grid md:grid-cols-2 gap-12 lg:gap-20">
 
-        {/* Image panel */}
+        {/* Image */}
         <div className="relative aspect-square bg-cream-dark overflow-hidden">
           {product.image_url ? (
             <img
               src={product.image_url}
-              alt={product.name}
+              alt={lang === 'ar' && product.name_ar ? product.name_ar : product.name}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -66,8 +115,6 @@ export default function ProductDetailClient({ product, related }: Props) {
               <span className="text-8xl opacity-20 relative z-10">☕</span>
             </div>
           )}
-
-          {/* Badges */}
           <div className="absolute top-4 start-4 flex flex-col gap-2">
             {hasDiscount && (
               <span className="bg-terracotta text-cream text-[10px] tracking-widest uppercase px-3 py-1">
@@ -83,23 +130,66 @@ export default function ProductDetailClient({ product, related }: Props) {
         </div>
 
         {/* Info panel */}
-        <div className="flex flex-col justify-center">
-          {/* Category */}
+        <div className="flex flex-col">
           {product.category && (
-            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">
-              {product.category}
+            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{product.category}</p>
+          )}
+
+          <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-2">
+            {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+          </h1>
+
+          {product.tags && product.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {product.tags.map((tag) => (
+                <span key={tag} className="text-[10px] tracking-widest uppercase border border-sand/40 text-sand px-3 py-1">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {(lang === 'ar' ? (product.description_ar || product.description) : product.description) && (
+            <p className="text-charcoal/60 leading-relaxed mb-5 text-sm">
+              {lang === 'ar' ? (product.description_ar || product.description) : product.description}
             </p>
           )}
 
-          {/* Name */}
-          <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-4">
-            {product.name}
-          </h1>
+          <div className="h-px bg-sand/20 mb-5" />
+
+          {/* Weight selector */}
+          {isWeightProduct && orderedVariants.length > 1 && (
+            <div className="mb-5">
+              <p className="text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
+                {t('الوزن', 'Weight')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {orderedVariants.map((v) => {
+                  const unavailable = !v.in_stock || v.quantity === 0
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => { setSelectedVariantId(v.id); setQty(1) }}
+                      disabled={unavailable}
+                      className={`flex items-center gap-2 px-3 py-2 text-xs border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                        selectedVariantId === v.id
+                          ? 'bg-charcoal text-cream border-charcoal'
+                          : 'border-sand/40 text-charcoal hover:border-charcoal'
+                      }`}
+                    >
+                      <span className="font-medium">{v.weight}</span>
+                      <span className="opacity-60">{v.price.toFixed(0)} {t('ر.ق', 'QAR')}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Price */}
-          <div className="flex items-baseline gap-3 mb-6">
+          <div className="flex items-baseline gap-3 mb-5">
             <span className="text-3xl font-light text-charcoal">
-              {product.price.toFixed(2)}
+              {displayPrice.toFixed(2)}
               <span className="text-base text-sand ms-1">{t('ر.ق', 'QAR')}</span>
             </span>
             {hasDiscount && (
@@ -109,70 +199,80 @@ export default function ProductDetailClient({ product, related }: Props) {
             )}
           </div>
 
-          {/* Divider */}
-          <div className="h-px bg-sand/20 mb-6" />
-
-          {/* Description */}
-          {product.description && (
-            <p className="text-charcoal/60 leading-relaxed mb-8 text-sm">
-              {product.description}
-            </p>
-          )}
-
-          {/* Tags */}
-          {product.tags && product.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-8">
-              {product.tags.map((tag) => (
-                <span key={tag} className="text-[10px] tracking-widest uppercase border border-sand/40 text-sand px-3 py-1">
-                  {tag}
-                </span>
-              ))}
+          {/* Grind selector — Coffee Beans only */}
+          {isCoffeeBeans && (
+            <div className="mb-5">
+              <p className="text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
+                {t('درجة الطحن', 'Grind')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {GRIND_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setGrind(opt.value)}
+                    className={`px-3 py-1.5 text-xs border transition-all ${
+                      grind === opt.value
+                        ? 'bg-charcoal text-cream border-charcoal'
+                        : 'border-sand/40 text-charcoal hover:border-charcoal'
+                    }`}
+                  >
+                    {t(opt.ar, opt.en)}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Stock indicator */}
-          {!isOutOfStock && product.quantity <= product.low_stock_threshold && (
+          {/* Notes */}
+          <div className="mb-5">
+            <label className="block text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
+              {t('ملاحظات', 'Notes')}
+              <span className="ms-2 normal-case font-normal text-charcoal/30">
+                {t('(اختياري)', '(optional)')}
+              </span>
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t(
+                'أي طلب خاص — نكهة، نوع التحميص، تفضيلات...',
+                'Any special request — flavor, roast level, preferences...'
+              )}
+              className="w-full border border-sand/30 px-3 py-2.5 text-sm bg-white text-charcoal focus:outline-none focus:border-charcoal resize-none placeholder-charcoal/30 leading-relaxed"
+            />
+          </div>
+
+          {/* Stock warning */}
+          {!isOutOfStock && displayQuantity <= product.low_stock_threshold && (
             <p className="text-xs text-gold tracking-wide mb-4">
-              ⚠ {t(`تبقّى ${product.quantity} فقط`, `Only ${product.quantity} left in stock`)}
+              ⚠ {t(`تبقّى ${displayQuantity} فقط`, `Only ${displayQuantity} left in stock`)}
             </p>
           )}
 
-          {/* Quantity + Add to cart */}
+          {/* Qty + Add */}
           {!isOutOfStock ? (
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Qty selector */}
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center border border-sand/40">
-                <button
-                  onClick={() => setQty(Math.max(1, qty - 1))}
-                  className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors"
-                >
+                <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors">
                   <Minus size={14} strokeWidth={1.5} />
                 </button>
-                <span className="px-4 py-2.5 text-sm text-charcoal min-w-[40px] text-center border-x border-sand/40">
-                  {qty}
-                </span>
-                <button
-                  onClick={() => setQty(Math.min(product.quantity, qty + 1))}
-                  className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors"
-                >
+                <span className="px-4 py-2.5 text-sm text-charcoal min-w-[40px] text-center border-x border-sand/40">{qty}</span>
+                <button onClick={() => setQty(Math.min(displayQuantity, qty + 1))} className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors">
                   <Plus size={14} strokeWidth={1.5} />
                 </button>
               </div>
 
-              {/* Add to cart button */}
               <button
                 onClick={handleAdd}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 text-sm tracking-widest uppercase font-medium transition-all duration-300 ${
-                  added
-                    ? 'bg-green-700 text-cream'
-                    : 'bg-charcoal text-cream hover:bg-sand hover:text-charcoal'
+                  added ? 'bg-green-700 text-cream' : 'bg-charcoal text-cream hover:bg-sand hover:text-charcoal'
                 }`}
               >
-                {added ? (
-                  <><Check size={16} strokeWidth={2} /> {t('أُضيف!', 'Added!')}</>
-                ) : (
-                  <><ShoppingBag size={16} strokeWidth={1.5} /> {t('أضف إلى السلة', 'Add to Cart')}</>
-                )}
+                {added
+                  ? <><Check size={16} strokeWidth={2} /> {t('أُضيف!', 'Added!')}</>
+                  : <><ShoppingBag size={16} strokeWidth={1.5} /> {t('أضف إلى السلة', 'Add to Cart')}</>
+                }
               </button>
             </div>
           ) : (
@@ -181,15 +281,14 @@ export default function ProductDetailClient({ product, related }: Props) {
             </div>
           )}
 
-          {/* Proceed to checkout shortcut */}
           {added && (
-            <Link href="/cart" className="mt-4 text-center text-xs tracking-widest uppercase text-sand underline underline-offset-4 hover:text-gold transition-colors">
+            <Link href="/cart" className="mt-3 text-center text-xs tracking-widest uppercase text-sand underline underline-offset-4 hover:text-gold transition-colors">
               {t('عرض السلة والدفع ←', 'View Cart & Checkout →')}
             </Link>
           )}
 
-          {/* Meta info */}
-          <div className="mt-8 pt-6 border-t border-sand/20 grid grid-cols-2 gap-4 text-xs">
+          {/* Meta */}
+          <div className="mt-6 pt-5 border-t border-sand/20 grid grid-cols-2 gap-4 text-xs">
             {product.sku && (
               <div>
                 <span className="tracking-widest uppercase text-charcoal/40">{t('الرمز', 'SKU')}: </span>
@@ -198,8 +297,8 @@ export default function ProductDetailClient({ product, related }: Props) {
             )}
             <div>
               <span className="tracking-widest uppercase text-charcoal/40">{t('الحالة', 'Status')}: </span>
-              <span className={product.in_stock ? 'text-green-700' : 'text-red-500'}>
-                {product.in_stock ? t('متوفر', 'In Stock') : t('نفد', 'Out of Stock')}
+              <span className={displayInStock ? 'text-green-700' : 'text-red-500'}>
+                {displayInStock ? t('متوفر', 'In Stock') : t('نفد', 'Out of Stock')}
               </span>
             </div>
           </div>
@@ -214,9 +313,7 @@ export default function ProductDetailClient({ product, related }: Props) {
             <h2 className="text-3xl font-light text-charcoal mb-10">{t('منتجات مشابهة', 'Related Products')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {related.map((p) => (
-                <Link key={p.id} href={`/products/${p.id}`}>
-                  <ProductCard product={p} />
-                </Link>
+                <ProductCard key={p.id} product={p} />
               ))}
             </div>
           </div>

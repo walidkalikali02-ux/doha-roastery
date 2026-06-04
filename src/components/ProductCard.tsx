@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function ProductCard({ product }: Props) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { addItem } = useCart()
 
   const isLowStock = product.quantity > 0 && product.quantity <= product.low_stock_threshold
@@ -23,7 +23,7 @@ export default function ProductCard({ product }: Props) {
           {product.image_url ? (
             <img
               src={product.image_url}
-              alt={product.name}
+              alt={lang === 'ar' && product.name_ar ? product.name_ar : product.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
@@ -62,7 +62,7 @@ export default function ProductCard({ product }: Props) {
         )}
         <Link href={`/products/${product.id}`}>
           <h3 className="text-sm font-medium text-charcoal leading-snug mb-3 line-clamp-2 hover:text-sand transition-colors">
-            {product.name}
+            {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
           </h3>
         </Link>
         <div className="flex items-center justify-between">
@@ -78,7 +78,7 @@ export default function ProductCard({ product }: Props) {
           </div>
           <button
             disabled={isOutOfStock}
-            onClick={() => addItem({ id: product.id, name: product.name, price: product.price, image_url: product.image_url })}
+            onClick={() => addItem({ id: product.id, name: product.name, weight: '', grind: '', notes: '', price: product.price, image_url: product.image_url })}
             className="text-[10px] tracking-widest uppercase border border-charcoal text-charcoal px-3 py-1.5
                        hover:bg-charcoal hover:text-cream transition-all duration-200
                        disabled:opacity-30 disabled:cursor-not-allowed"

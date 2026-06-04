@@ -6,6 +6,14 @@ import { useCart } from '@/contexts/CartContext'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
+const GRIND_LABELS: Record<string, { ar: string; en: string }> = {
+  'whole-bean':   { ar: 'حبوب كاملة', en: 'Whole Bean' },
+  'espresso':     { ar: 'إسبريسو',    en: 'Espresso' },
+  'filter':       { ar: 'فلتر',        en: 'Filter' },
+  'moka':         { ar: 'موكا',        en: 'Moka Pot' },
+  'french-press': { ar: 'فرنش برس',   en: 'French Press' },
+}
+
 export default function CartPage() {
   const { t, dir } = useLang()
   const { items, removeItem, updateQty, total, count } = useCart()
@@ -28,7 +36,6 @@ export default function CartPage() {
           </div>
 
           {items.length === 0 ? (
-            /* Empty cart */
             <div className="flex flex-col items-center justify-center py-28 text-center">
               <ShoppingBag size={48} strokeWidth={1} className="text-sand mb-6" />
               <h2 className="text-2xl font-light text-charcoal mb-3">
@@ -47,67 +54,92 @@ export default function CartPage() {
             <div className="grid lg:grid-cols-3 gap-10">
               {/* Items list */}
               <div className="lg:col-span-2 space-y-0 divide-y divide-sand/15 border-y border-sand/15">
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-5 py-6">
-                    {/* Thumbnail */}
-                    <Link href={`/products/${item.id}`} className="flex-shrink-0">
-                      <div className="w-24 h-24 bg-cream-dark overflow-hidden">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-3xl opacity-20">☕</div>
-                        )}
-                      </div>
-                    </Link>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/products/${item.id}`}>
-                        <h3 className="text-sm font-medium text-charcoal hover:text-sand transition-colors line-clamp-2 mb-1">
-                          {item.name}
-                        </h3>
+                {items.map((item) => {
+                  const grindLabel = item.grind ? GRIND_LABELS[item.grind] : null
+                  return (
+                    <div key={item.cartKey} className="flex gap-5 py-6">
+                      {/* Thumbnail */}
+                      <Link href={`/products/${item.id}`} className="flex-shrink-0">
+                        <div className="w-24 h-24 bg-cream-dark overflow-hidden">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl opacity-20">☕</div>
+                          )}
+                        </div>
                       </Link>
-                      <p className="text-base font-light text-charcoal mb-3">
-                        {item.price.toFixed(2)} <span className="text-sand text-sm">{t('ر.ق', 'QAR')}</span>
-                      </p>
 
-                      {/* Qty controls */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center border border-sand/40">
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/products/${item.id}`}>
+                          <h3 className="text-sm font-medium text-charcoal hover:text-sand transition-colors line-clamp-2 mb-0.5">
+                            {item.name}
+                          </h3>
+                        </Link>
+
+                        {/* Weight + Grind tags */}
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {item.weight && (
+                            <span className="text-[10px] tracking-widest uppercase border border-sand/40 text-sand px-2 py-0.5">
+                              {item.weight}
+                            </span>
+                          )}
+                          {grindLabel && (
+                            <span className="text-[10px] tracking-widest uppercase border border-sand/40 text-sand px-2 py-0.5">
+                              {t(grindLabel.ar, grindLabel.en)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        {item.notes && (
+                          <p className="text-xs text-charcoal/40 italic mb-2 line-clamp-1">
+                            {item.notes}
+                          </p>
+                        )}
+
+                        <p className="text-base font-light text-charcoal mb-3">
+                          {item.price.toFixed(2)} <span className="text-sand text-sm">{t('ر.ق', 'QAR')}</span>
+                        </p>
+
+                        {/* Qty controls */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center border border-sand/40">
+                            <button
+                              onClick={() => updateQty(item.cartKey, item.quantity - 1)}
+                              className="px-2.5 py-1.5 text-charcoal hover:text-sand transition-colors"
+                            >
+                              <Minus size={12} strokeWidth={2} />
+                            </button>
+                            <span className="px-3 py-1.5 text-sm text-charcoal border-x border-sand/40 min-w-[32px] text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQty(item.cartKey, item.quantity + 1)}
+                              className="px-2.5 py-1.5 text-charcoal hover:text-sand transition-colors"
+                            >
+                              <Plus size={12} strokeWidth={2} />
+                            </button>
+                          </div>
                           <button
-                            onClick={() => updateQty(item.id, item.quantity - 1)}
-                            className="px-2.5 py-1.5 text-charcoal hover:text-sand transition-colors"
+                            onClick={() => removeItem(item.cartKey)}
+                            className="text-charcoal/30 hover:text-red-400 transition-colors"
                           >
-                            <Minus size={12} strokeWidth={2} />
-                          </button>
-                          <span className="px-3 py-1.5 text-sm text-charcoal border-x border-sand/40 min-w-[32px] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQty(item.id, item.quantity + 1)}
-                            className="px-2.5 py-1.5 text-charcoal hover:text-sand transition-colors"
-                          >
-                            <Plus size={12} strokeWidth={2} />
+                            <Trash2 size={15} strokeWidth={1.5} />
                           </button>
                         </div>
-                        <button
-                          onClick={() => removeItem(item.id)}
-                          className="text-charcoal/30 hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 size={15} strokeWidth={1.5} />
-                        </button>
+                      </div>
+
+                      {/* Line total */}
+                      <div className="text-end flex-shrink-0">
+                        <p className="text-sm font-medium text-charcoal">
+                          {(item.price * item.quantity).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-sand">{t('ر.ق', 'QAR')}</p>
                       </div>
                     </div>
-
-                    {/* Line total */}
-                    <div className="text-end flex-shrink-0">
-                      <p className="text-sm font-medium text-charcoal">
-                        {(item.price * item.quantity).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-sand">{t('ر.ق', 'QAR')}</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Order summary */}
@@ -130,7 +162,7 @@ export default function CartPage() {
                     </div>
                     {shipping > 0 && (
                       <p className="text-[10px] text-sand tracking-wide">
-                        {t(`شحن مجاني عند الطلب بـ 200 ر.ق أو أكثر`, `Free shipping on orders over 200 QAR`)}
+                        {t('شحن مجاني عند الطلب بـ 200 ر.ق أو أكثر', 'Free shipping on orders over 200 QAR')}
                       </p>
                     )}
                   </div>

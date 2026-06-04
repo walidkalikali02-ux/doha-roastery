@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Package, LogOut, User, ChevronDown } from 'lucide-react'
-import { useLang } from '@/contexts/LanguageContext'
+import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
@@ -20,11 +20,6 @@ const STATUS_COLORS: Record<string, string> = {
   payment_failed: 'bg-red-50 text-red-700 border-red-200',
 }
 
-const STATUS_AR: Record<string, string> = {
-  pending: 'معلق', confirmed: 'مؤكد', processing: 'قيد التجهيز',
-  shipped: 'تم الشحن', delivered: 'تم التسليم',
-  cancelled: 'ملغي', payment_failed: 'فشل الدفع',
-}
 
 export default function AccountPage() {
   const { t, dir } = useLang()
@@ -143,7 +138,7 @@ export default function AccountPage() {
                         </p>
                       </div>
                       <span className={`text-[10px] tracking-widest uppercase px-2 py-0.5 border flex-shrink-0 ${STATUS_COLORS[order.status]}`}>
-                        {dir === 'rtl' ? STATUS_AR[order.status] : order.status}
+                        {t(STATUS_LABELS[order.status]?.ar ?? order.status, STATUS_LABELS[order.status]?.en ?? order.status)}
                       </span>
                       <span className="text-sm text-charcoal flex-shrink-0">
                         {(order.total ?? 0).toFixed(2)} {t('ر.ق', 'QAR')}

@@ -1,8 +1,9 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import ProductCard from '@/components/ProductCard'
+import ProductGroupCard, { ProductGroup, WeightVariant } from '@/components/ProductGroupCard'
 import GeometricPattern from '@/components/GeometricPattern'
 import { Product } from '@/lib/types'
 
@@ -11,11 +12,56 @@ interface Props {
   categories: string[]
 }
 
+const WEIGHT_ORDER = ['100g', '250g', '500g', '1kg']
+
+function groupProducts(products: Product[]): Array<ProductGroup | Product> {
+  const groupMap = new Map<string, Product[]>()
+  const singles: Product[] = []
+
+  for (const product of products) {
+    if (product.weight) {
+      if (!groupMap.has(product.name)) groupMap.set(product.name, [])
+      groupMap.get(product.name)!.push(product)
+    } else {
+      singles.push(product)
+    }
+  }
+
+  const result: Array<ProductGroup | Product> = []
+
+  for (const [name, variants] of groupMap.entries()) {
+    const sorted = [...variants].sort(
+      (a, b) => WEIGHT_ORDER.indexOf(a.weight ?? '') - WEIGHT_ORDER.indexOf(b.weight ?? '')
+    )
+    const rep = sorted.find((v) => v.image_url) ?? sorted[0]
+    const weightVariants: WeightVariant[] = sorted.map((v) => ({
+      id: v.id,
+      weight: v.weight ?? '',
+      price: v.price,
+      in_stock: v.in_stock,
+      quantity: v.quantity,
+    }))
+    result.push({
+      baseName: name,
+      baseName_ar: rep.name_ar ?? null,
+      category: rep.category,
+      image_url: rep.image_url,
+      variants: weightVariants,
+    } satisfies ProductGroup)
+  }
+
+  result.push(...singles)
+  return result
+}
+
+function isGroup(item: ProductGroup | Product): item is ProductGroup {
+  return 'baseName' in item
+}
+
 export default function ProductsClient({ products, categories }: Props) {
   const { t, dir } = useLang()
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
   const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest')
 
   const filtered = useMemo(() => {
@@ -27,7 +73,7 @@ export default function ProductsClient({ products, categories }: Props) {
     if (selectedCat) list = list.filter((p) => p.category === selectedCat)
     if (sort === 'price_asc') list.sort((a, b) => a.price - b.price)
     else if (sort === 'price_desc') list.sort((a, b) => b.price - a.price)
-    return list
+    return groupProducts(list)
   }, [products, search, selectedCat, sort])
 
   return (
@@ -48,7 +94,6 @@ export default function ProductsClient({ products, categories }: Props) {
       {/* Filters bar */}
       <div className="sticky top-16 z-30 bg-cream border-b border-sand/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-4 flex-wrap">
-          {/* Search */}
           <div className="relative flex-1 min-w-[180px]">
             <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-sand" />
             <input
@@ -60,7 +105,6 @@ export default function ProductsClient({ products, categories }: Props) {
             />
           </div>
 
-          {/* Category pills */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setSelectedCat(null)}
@@ -87,7 +131,6 @@ export default function ProductsClient({ products, categories }: Props) {
             ))}
           </div>
 
-          {/* Sort */}
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
@@ -107,9 +150,13 @@ export default function ProductsClient({ products, categories }: Props) {
         </p>
         {filtered.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+            {filtered.map((item) =>
+              isGroup(item) ? (
+                <ProductGroupCard key={item.baseName} group={item} />
+              ) : (
+                <ProductCard key={(item as Product).id} product={item as Product} />
+              )
+            )}
           </div>
         ) : (
           <div className="text-center py-32">
