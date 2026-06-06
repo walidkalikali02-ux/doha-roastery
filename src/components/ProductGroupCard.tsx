@@ -48,7 +48,11 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
     })
   }
 
-  const orderedWeights = WEIGHT_ORDER.filter((w) => group.variants.some((v) => v.weight === w))
+  const isWeightBased = group.variants.some(v => /^\d+(g|kg)$/i.test(v.weight))
+
+  const orderedWeights = isWeightBased
+    ? WEIGHT_ORDER.filter((w) => group.variants.some((v) => v.weight === w))
+    : group.variants.map(v => v.weight)
 
   return (
     <div className="group bg-white border border-sand/20 hover:border-sand/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
@@ -87,27 +91,34 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
           </h3>
         </Link>
 
-        {/* Weight selector */}
+        {/* Variant selector */}
         {orderedWeights.length > 1 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {orderedWeights.map((weight) => {
-              const variant = group.variants.find((v) => v.weight === weight)!
-              const unavailable = !variant.in_stock || variant.quantity === 0
-              return (
-                <button
-                  key={weight}
-                  onClick={() => setSelectedId(variant.id)}
-                  disabled={unavailable}
-                  className={`text-[10px] tracking-wide px-2 py-1 border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    selectedId === variant.id
-                      ? 'bg-charcoal text-cream border-charcoal'
-                      : 'border-sand/40 text-charcoal hover:border-charcoal'
-                  }`}
-                >
-                  {weight}
-                </button>
-              )
-            })}
+          <div className="mb-3">
+            {!isWeightBased && (
+              <p className="text-[10px] tracking-widest uppercase text-charcoal/40 mb-1.5">
+                {t('النوع', 'Type')}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {orderedWeights.map((weight) => {
+                const variant = group.variants.find((v) => v.weight === weight)!
+                const unavailable = !variant.in_stock || variant.quantity === 0
+                return (
+                  <button
+                    key={weight}
+                    onClick={() => setSelectedId(variant.id)}
+                    disabled={unavailable}
+                    className={`text-[10px] tracking-wide px-2 py-1 border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                      selectedId === variant.id
+                        ? 'bg-charcoal text-cream border-charcoal'
+                        : 'border-sand/40 text-charcoal hover:border-charcoal'
+                    }`}
+                  >
+                    {weight}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 

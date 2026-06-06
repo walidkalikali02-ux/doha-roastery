@@ -61,6 +61,8 @@ export default function ProductDetailClient({ product, weightVariants, related }
     ? Math.round(((product.compare_at_price! - product.price) / product.compare_at_price!) * 100)
     : 0
 
+  const isWeightBased = weightVariants.some(v => /^\d+(g|kg)$/i.test(v.weight))
+
   const orderedVariants = [...weightVariants].sort(
     (a, b) => WEIGHT_ORDER.indexOf(a.weight) - WEIGHT_ORDER.indexOf(b.weight)
   )
@@ -161,7 +163,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
           {isWeightProduct && orderedVariants.length > 1 && (
             <div className="mb-5">
               <p className="text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
-                {t('الوزن', 'Weight')}
+                {isWeightBased ? t('الوزن', 'Weight') : t('النوع', 'Type')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {orderedVariants.map((v) => {
