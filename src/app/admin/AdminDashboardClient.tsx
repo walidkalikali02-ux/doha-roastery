@@ -1,15 +1,28 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react'
+import { Package, ShoppingCart, DollarSign, TrendingUp, Receipt, CalendarDays, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
-import { fetchAdminOrdersOverview } from '@/lib/admin-orders'
+import { DailyOrderMetric, fetchAdminOrdersOverview, StatusMetric } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
 
 interface Props {
-  stats: { totalProducts: number; totalOrders: number; totalRevenue: number; pendingOrders: number }
+  stats: {
+    totalProducts: number
+    totalOrders: number
+    totalRevenue: number
+    pendingOrders: number
+    avgOrderValue: number
+    todayOrders: number
+    todayRevenue: number
+    deliveredRate: number
+  }
   recentOrders: Order[]
+  analytics: {
+    last7Days: DailyOrderMetric[]
+    statusBreakdown: StatusMetric[]
+  }
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -22,10 +35,11 @@ const STATUS_COLORS: Record<string, string> = {
   payment_failed: 'bg-red-100 text-red-800',
 }
 
-export default function AdminDashboardClient({ stats, recentOrders }: Props) {
+export default function AdminDashboardClient({ stats, recentOrders, analytics }: Props) {
   const { t, dir } = useLang()
   const [liveStats, setLiveStats] = useState(stats)
   const [liveRecentOrders, setLiveRecentOrders] = useState(recentOrders)
+  const [liveAnalytics, setLiveAnalytics] = useState(analytics)
 
   const refreshOrdersOverview = useCallback(async () => {
     const overview = await fetchAdminOrdersOverview()
@@ -35,8 +49,16 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
       totalOrders: overview.totalOrders,
       totalRevenue: overview.totalRevenue,
       pendingOrders: overview.pendingOrders,
+      avgOrderValue: overview.avgOrderValue,
+      todayOrders: overview.todayOrders,
+      todayRevenue: overview.todayRevenue,
+      deliveredRate: overview.deliveredRate,
     }))
     setLiveRecentOrders(overview.recentOrders)
+    setLiveAnalytics({
+      last7Days: overview.last7Days,
+      statusBreakdown: overview.statusBreakdown,
+    })
   }, [])
 
   useEffect(() => {
@@ -46,6 +68,10 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
   useEffect(() => {
     setLiveRecentOrders(recentOrders)
   }, [recentOrders])
+
+  useEffect(() => {
+    setLiveAnalytics(analytics)
+  }, [analytics])
 
   useEffect(() => {
     const channel = supabase
@@ -95,6 +121,36 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
     },
   ]
 
+  const analyticsCards = [
+    {
+      label: t('متوسط قيمة الطلب', 'Average Order Value'),
+      value: liveStats.avgOrderValue.toFixed(2),
+      suffix: t('ر.ق', 'QAR'),
+      icon: Receipt,
+    },
+    {
+      label: t('طلبات اليوم', 'Today Orders'),
+      value: liveStats.todayOrders.toString(),
+      suffix: '',
+      icon: CalendarDays,
+    },
+    {
+      label: t('إيراد اليوم', 'Today Revenue'),
+      value: liveStats.todayRevenue.toFixed(2),
+      suffix: t('ر.ق', 'QAR'),
+      icon: DollarSign,
+    },
+    {
+      label: t('معدل التسليم', 'Delivered Rate'),
+      value: liveStats.deliveredRate.toFixed(0),
+      suffix: '%',
+      icon: CheckCircle2,
+    },
+  ]
+
+  const maxRevenue = Math.max(...liveAnalytics.last7Days.map((day) => day.revenue), 1)
+  const maxStatusCount = Math.max(...liveAnalytics.statusBreakdown.map((item) => item.count), 1)
+
   return (
     <div dir={dir} className="space-y-8">
       {/* Stat cards */}
@@ -115,6 +171,103 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
             </div>
           </Link>
         ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.95fr]">
+        <section className="bg-white border border-sand/20">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-sand/10">
+            <div>
+              <h2 className="text-sm tracking-widest uppercase text-charcoal">
+                {t('تحليلات المبيعات', 'Sales Analytics')}
+              </h2>
+              <p className="mt-1 text-xs text-charcoal/40">
+                {t('آخر ٧ أيام من الطلبات والإيرادات', 'Last 7 days of orders and revenue')}
+              </p>
+            </div>
+            <span className="text-[10px] tracking-[0.3em] uppercase text-sand">
+              {t('مباشر', 'Live')}
+            </span>
+          </div>
+
+          <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
+            {analyticsCards.map((card) => (
+              <div key={card.label} className="border border-sand/15 bg-cream/30 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[10px] tracking-[0.24em] uppercase text-charcoal/45">{card.label}</p>
+                  <card.icon size={16} strokeWidth={1.4} className="text-sand" />
+                </div>
+                <p className="text-2xl font-light text-charcoal">
+                  {card.value}
+                  {card.suffix && <span className="ms-1 text-sm text-sand">{card.suffix}</span>}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 pb-6">
+            <div className="grid h-64 grid-cols-7 items-end gap-3 border-t border-sand/10 pt-6">
+              {liveAnalytics.last7Days.map((day) => {
+                const height = `${Math.max((day.revenue / maxRevenue) * 100, day.revenue > 0 ? 12 : 4)}%`
+
+                return (
+                  <div key={day.date} className="flex h-full flex-col justify-end gap-3">
+                    <div className="text-center">
+                      <p className="text-[10px] tracking-[0.2em] uppercase text-charcoal/35">{day.orders}</p>
+                    </div>
+                    <div className="relative flex-1 rounded-t-full bg-cream-dark/70">
+                      <div
+                        className="absolute inset-x-0 bottom-0 rounded-t-full bg-gradient-to-t from-charcoal via-charcoal-light to-sand transition-all duration-500"
+                        style={{ height }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[11px] font-medium text-charcoal">{day.label}</p>
+                      <p className="mt-1 text-[10px] text-charcoal/45">
+                        {day.revenue.toFixed(0)} {t('ر.ق', 'QAR')}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white border border-sand/20">
+          <div className="px-6 py-4 border-b border-sand/10">
+            <h2 className="text-sm tracking-widest uppercase text-charcoal">
+              {t('حالة الطلبات', 'Order Status Mix')}
+            </h2>
+            <p className="mt-1 text-xs text-charcoal/40">
+              {t('توزيع الطلبات الحالية حسب الحالة', 'Current order distribution by status')}
+            </p>
+          </div>
+
+          <div className="space-y-4 p-6">
+            {liveAnalytics.statusBreakdown.length === 0 ? (
+              <div className="py-10 text-center text-sm tracking-widest text-charcoal/30">
+                {t('لا توجد بيانات بعد', 'No analytics yet')}
+              </div>
+            ) : (
+              liveAnalytics.statusBreakdown.map((item) => (
+                <div key={item.status} className="space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs tracking-[0.2em] uppercase text-charcoal/55">
+                      {t(STATUS_LABELS[item.status]?.ar ?? item.status, STATUS_LABELS[item.status]?.en ?? item.status)}
+                    </p>
+                    <p className="text-sm font-medium text-charcoal">{item.count}</p>
+                  </div>
+                  <div className="h-2 overflow-hidden bg-cream-dark/80">
+                    <div
+                      className="h-full bg-gradient-to-r from-sand via-gold to-charcoal transition-all duration-500"
+                      style={{ width: `${(item.count / maxStatusCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
 
       {/* Recent orders */}
