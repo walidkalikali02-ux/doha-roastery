@@ -6,6 +6,7 @@ import { ChevronRight, Lock } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { supabase } from '@/lib/supabase'
+import { localizeWeight } from '@/lib/display-text'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -28,7 +29,7 @@ const EMPTY: FormData = {
 }
 
 export default function CheckoutPage() {
-  const { t, dir } = useLang()
+  const { t, dir, lang } = useLang()
   const { items, total, clear } = useCart()
   const router = useRouter()
 
@@ -72,7 +73,7 @@ export default function CheckoutPage() {
         .select()
         .single()
 
-      if (orderErr || !order) throw orderErr ?? new Error('Order creation failed')
+      if (orderErr || !order) throw orderErr ?? new Error(t('تعذر إنشاء الطلب', 'Order creation failed'))
 
       const orderItems = items.map((item) => ({
         order_id: order.id,
@@ -117,7 +118,7 @@ export default function CheckoutPage() {
     return (
       <>
         <Header />
-        <main className="pt-16 min-h-screen flex items-center justify-center" dir={dir}>
+        <main className="pt-24 min-h-screen flex items-center justify-center" dir={dir}>
           <div className="text-center">
             <p className="text-charcoal/40 mb-4">{t('السلة فارغة', 'Your cart is empty')}</p>
             <Link href="/products">
@@ -137,17 +138,16 @@ export default function CheckoutPage() {
     { key: 'shipping', label: t('الشحن', 'Shipping') },
     { key: 'review', label: t('المراجعة', 'Review') },
   ]
-  const stepIndex = steps.findIndex((s) => s.key === step)
 
   return (
     <>
       <Header />
-      <main className="pt-16 min-h-screen bg-cream" dir={dir}>
+      <main className="pt-24 min-h-screen bg-cream" dir={dir}>
         <div className="max-w-6xl mx-auto px-6 py-12">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs text-charcoal/40 mb-10">
             <Link href="/cart" className="hover:text-sand transition-colors">{t('السلة', 'Cart')}</Link>
-            {steps.map((s, i) => (
+            {steps.map((s) => (
               <span key={s.key} className="flex items-center gap-2">
                 <ChevronRight size={12} className={dir === 'rtl' ? 'rotate-180' : ''} />
                 <span className={step === s.key ? 'text-charcoal font-medium' : 'text-charcoal/40'}>
@@ -289,7 +289,7 @@ export default function CheckoutPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-charcoal truncate">{item.name}</p>
                           <p className="text-xs text-charcoal/40">
-                            {item.weight && <span>{item.weight} · </span>}
+                            {item.weight && <span>{localizeWeight(item.weight, lang)} · </span>}
                             × {item.quantity}
                           </p>
                         </div>
@@ -347,7 +347,7 @@ export default function CheckoutPage() {
                         </span>
                       </div>
                       <p className="flex-1 text-xs text-charcoal line-clamp-1">
-                        {item.name}{item.weight ? ` – ${item.weight}` : ''}
+                        {item.name}{item.weight ? ` – ${localizeWeight(item.weight, lang)}` : ''}
                       </p>
                       <p className="text-xs text-charcoal flex-shrink-0">
                         {(item.price * item.quantity).toFixed(2)}
@@ -410,12 +410,14 @@ function ReviewSection({
   onEdit: () => void
   children: React.ReactNode
 }) {
+  const { t } = useLang()
+
   return (
     <div className="border border-sand/20 p-5 bg-white">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs tracking-widest uppercase text-charcoal/50">{title}</p>
         <button onClick={onEdit} className="text-xs tracking-widest uppercase text-sand hover:text-gold transition-colors">
-          تعديل / Edit
+          {t('تعديل', 'Edit')}
         </button>
       </div>
       <div className="text-sm text-charcoal space-y-0.5">{children}</div>

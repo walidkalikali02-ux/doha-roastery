@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { Product } from '@/lib/types'
+import { localizeCategory } from '@/lib/display-text'
 
 interface Props {
   product: Product
@@ -57,7 +58,7 @@ export default function ProductCard({ product }: Props) {
       <div className="p-4">
         {product.category && (
           <p className="text-[10px] tracking-widest uppercase text-sand mb-1">
-            {product.category}
+            {localizeCategory(product.category, lang)}
           </p>
         )}
         <Link href={`/products/${product.id}`}>

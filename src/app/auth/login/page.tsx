@@ -6,6 +6,7 @@ import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import GeometricPattern from '@/components/GeometricPattern'
+import { getBrandName } from '@/lib/display-text'
 
 export default function LoginPage() {
   const { t, dir } = useLang()
@@ -40,10 +41,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           <Link href="/" className="block mb-12">
             <div className="text-3xl font-light tracking-[0.25em] text-cream uppercase">
-              {t('دوحة', 'DOHA')}
-            </div>
-            <div className="text-xs tracking-[0.6em] text-sand uppercase mt-1">
-              {t('رواسترز', 'ROASTERY')}
+              {getBrandName(dir === 'rtl' ? 'ar' : 'en')}
             </div>
           </Link>
           <p className="text-cream/50 text-lg font-light leading-relaxed max-w-sm">
@@ -60,9 +58,8 @@ export default function LoginPage() {
         {/* Mobile logo */}
         <Link href="/" className="lg:hidden mb-10 block">
           <div className="text-xl font-light tracking-[0.2em] text-charcoal uppercase">
-            {t('دوحة', 'DOHA')}
+            {getBrandName(dir === 'rtl' ? 'ar' : 'en')}
           </div>
-          <div className="text-[10px] tracking-[0.5em] text-sand uppercase">{t('رواسترز', 'ROASTERY')}</div>
         </Link>
 
         <div className="max-w-sm w-full mx-auto lg:mx-0">

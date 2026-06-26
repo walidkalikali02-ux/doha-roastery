@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
+import { localizeWeight } from '@/lib/display-text'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -24,7 +25,7 @@ export default function CartPage() {
   return (
     <>
       <Header />
-      <main className="pt-16 min-h-screen bg-cream" dir={dir}>
+      <main className="pt-24 min-h-screen bg-cream" dir={dir}>
         <div className="max-w-7xl mx-auto px-6 py-12">
           {/* Title */}
           <div className="mb-10">
@@ -81,7 +82,7 @@ export default function CartPage() {
                         <div className="flex flex-wrap gap-1.5 mb-2">
                           {item.weight && (
                             <span className="text-[10px] tracking-widest uppercase border border-sand/40 text-sand px-2 py-0.5">
-                              {item.weight}
+                              {localizeWeight(item.weight, dir === 'rtl' ? 'ar' : 'en')}
                             </span>
                           )}
                           {grindLabel && (

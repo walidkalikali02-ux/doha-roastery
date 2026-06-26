@@ -18,7 +18,7 @@ function SuccessContent() {
   return (
     <>
       <Header />
-      <main className="pt-16 min-h-screen bg-cream" dir={dir}>
+      <main className="pt-24 min-h-screen bg-cream" dir={dir}>
         {/* Top gold line */}
         <div className="h-1 bg-gradient-to-r from-transparent via-sand to-transparent" />
 

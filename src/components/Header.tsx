@@ -1,11 +1,13 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Menu, X, ShoppingBag, User, LogOut, LayoutDashboard, Package } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { getBrandName } from '@/lib/display-text'
 
 export default function Header() {
   const { lang, setLang, t, dir } = useLang()
@@ -30,6 +32,7 @@ export default function Header() {
   const links = [
     { href: '/', label: t('الرئيسية', 'Home') },
     { href: '/products', label: t('المنتجات', 'Products') },
+    { href: '/tools', label: t('الأدوات', 'Tools') },
     { href: '/wholesale', label: t('الجملة', 'Wholesale') },
     { href: '/about', label: t('من نحن', 'About') },
     { href: '/contact', label: t('تواصل', 'Contact') },
@@ -43,16 +46,18 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-cream/95 backdrop-blur-sm border-b border-sand/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between" dir={dir}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-24 flex items-center justify-between" dir={dir}>
 
         {/* Logo */}
-        <Link href="/" className="flex flex-col leading-none">
-          <span className="text-xl font-light tracking-[0.2em] text-charcoal uppercase">
-            {t('دوحة', 'DOHA')}
-          </span>
-          <span className="text-[10px] tracking-[0.5em] text-sand uppercase">
-            {t('رواسترز', 'ROASTERY')}
-          </span>
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt={getBrandName(lang)}
+            width={200}
+            height={100}
+            className="h-20 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* Desktop nav */}
@@ -142,7 +147,7 @@ export default function Header() {
 
           {/* Mobile menu toggle */}
           <button className="md:hidden text-charcoal hover:text-sand transition-colors"
-            onClick={() => setOpen(!open)} aria-label="toggle menu">
+            onClick={() => setOpen(!open)} aria-label={t('فتح القائمة', 'Toggle menu')}>
             {open ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Contact Doha Roastery | WhatsApp +974 6678 8898',
+  title: 'Contact Doha Roastery | WhatsApp +974 3333 7592',
   description:
     'Contact Doha Roastery in Qatar via WhatsApp, email, or our contact form. We supply specialty coffee to cafés, hotels, and individuals across Qatar. Open Sat–Thu 8AM–10PM.',
   keywords:

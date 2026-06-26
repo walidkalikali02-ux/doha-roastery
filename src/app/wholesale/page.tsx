@@ -6,7 +6,7 @@ const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 export const metadata: Metadata = {
   title: 'Wholesale Coffee Qatar | B2B Program | برنامج الجملة — دوحة روستري',
   description:
-    'برنامج جملة القهوة المتخصصة في قطر — للمقاهي والفنادق والمطاعم. خصومات تصل إلى ٢٥٪، توصيل منتظم، جودة مضمونة. Wholesale specialty coffee for cafés, hotels & restaurants in Qatar.',
+    'برنامج جملة القهوة المختصة في قطر — للمقاهي والفنادق والمطاعم. خصومات تصل إلى ٢٥٪، توصيل منتظم، جودة مضمونة. Wholesale specialty coffee for cafés, hotels & restaurants in Qatar.',
   keywords:
     'wholesale coffee Qatar, قهوة جملة قطر, B2B coffee Doha, specialty coffee supplier Qatar, مورد قهوة مختصة قطر, coffee supplier Doha, جملة قهوة الدوحة, Doha Roastery wholesale',
   alternates: { canonical: `${SITE_URL}/wholesale` },

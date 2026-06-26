@@ -6,6 +6,7 @@ import ProductCard from '@/components/ProductCard'
 import ProductGroupCard, { ProductGroup, WeightVariant } from '@/components/ProductGroupCard'
 import GeometricPattern from '@/components/GeometricPattern'
 import { Product } from '@/lib/types'
+import { localizeCategory } from '@/lib/display-text'
 
 interface Props {
   products: Product[]
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const WEIGHT_ORDER = ['100g', '250g', '500g', '1kg']
+const COMPOUND_SEP = '|'
 
 function groupProducts(products: Product[]): Array<ProductGroup | Product> {
   const groupMap = new Map<string, Product[]>()
@@ -20,8 +22,12 @@ function groupProducts(products: Product[]): Array<ProductGroup | Product> {
 
   for (const product of products) {
     if (product.weight) {
-      if (!groupMap.has(product.name)) groupMap.set(product.name, [])
-      groupMap.get(product.name)!.push(product)
+      const isCompound = product.weight.includes(COMPOUND_SEP)
+      const key = isCompound
+        ? `${product.name}|||${product.weight.split(COMPOUND_SEP)[0]}`
+        : product.name
+      if (!groupMap.has(key)) groupMap.set(key, [])
+      groupMap.get(key)!.push(product)
     } else {
       singles.push(product)
     }
@@ -29,10 +35,15 @@ function groupProducts(products: Product[]): Array<ProductGroup | Product> {
 
   const result: Array<ProductGroup | Product> = []
 
-  for (const [name, variants] of groupMap.entries()) {
-    const sorted = [...variants].sort(
-      (a, b) => WEIGHT_ORDER.indexOf(a.weight ?? '') - WEIGHT_ORDER.indexOf(b.weight ?? '')
-    )
+  for (const [key, variants] of groupMap.entries()) {
+    const isCompoundGroup = key.includes('|||')
+    const origin = isCompoundGroup ? key.split('|||')[1] : null
+
+    const sorted = isCompoundGroup
+      ? [...variants]
+      : [...variants].sort(
+          (a, b) => WEIGHT_ORDER.indexOf(a.weight ?? '') - WEIGHT_ORDER.indexOf(b.weight ?? '')
+        )
     const rep = sorted.find((v) => v.image_url) ?? sorted[0]
     const weightVariants: WeightVariant[] = sorted.map((v) => ({
       id: v.id,
@@ -42,11 +53,12 @@ function groupProducts(products: Product[]): Array<ProductGroup | Product> {
       quantity: v.quantity,
     }))
     result.push({
-      baseName: name,
+      baseName: rep.name,
       baseName_ar: rep.name_ar ?? null,
       category: rep.category,
       image_url: rep.image_url,
       variants: weightVariants,
+      origin,
     } satisfies ProductGroup)
   }
 
@@ -59,7 +71,7 @@ function isGroup(item: ProductGroup | Product): item is ProductGroup {
 }
 
 export default function ProductsClient({ products, categories }: Props) {
-  const { t, dir } = useLang()
+  const { t, dir, lang } = useLang()
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest')
@@ -77,7 +89,7 @@ export default function ProductsClient({ products, categories }: Props) {
   }, [products, search, selectedCat, sort])
 
   return (
-    <main className="pt-16 min-h-screen" dir={dir}>
+    <main className="pt-24 min-h-screen" dir={dir}>
       {/* Page hero */}
       <section className="relative bg-charcoal py-20 overflow-hidden">
         <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-20" />
@@ -126,7 +138,7 @@ export default function ProductsClient({ products, categories }: Props) {
                     : 'border-sand/40 text-charcoal hover:border-charcoal'
                 }`}
               >
-                {cat}
+                {localizeCategory(cat, lang)}
               </button>
             ))}
           </div>
@@ -152,7 +164,7 @@ export default function ProductsClient({ products, categories }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {filtered.map((item) =>
               isGroup(item) ? (
-                <ProductGroupCard key={item.baseName} group={item} />
+                <ProductGroupCard key={item.origin ? `${item.baseName}|||${item.origin}` : item.baseName} group={item} />
               ) : (
                 <ProductCard key={(item as Product).id} product={item as Product} />
               )

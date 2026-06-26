@@ -93,7 +93,7 @@ export default function TermsClient() {
   return (
     <>
       <Header />
-      <main className="pt-16" dir={dir}>
+      <main className="pt-24" dir={dir}>
 
         {/* Hero */}
         <section className="bg-cream-dark border-b border-sand/20 py-16">
@@ -166,7 +166,7 @@ export default function TermsClient() {
                     {t('تواصل معنا', 'Contact Us')}
                   </span>
                 </Link>
-                <a href="https://wa.me/97466788898" target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/97433337592" target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-[#25D366] text-white px-6 py-3 text-xs tracking-widest uppercase hover:bg-[#1ebe5d] transition-colors">
                   {t('واتساب', 'WhatsApp')}
                 </a>

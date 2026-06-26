@@ -24,7 +24,7 @@ function IconX({ size = 16 }: { size?: number; strokeWidth?: number }) {
   )
 }
 
-const WHATSAPP = 'https://wa.me/97466788898'
+const WHATSAPP = 'https://wa.me/97433337592'
 
 export default function ContactClient() {
   const { t, dir } = useLang()
@@ -49,7 +49,7 @@ export default function ContactClient() {
     {
       icon: MessageCircle,
       label: t('واتساب', 'WhatsApp'),
-      value: '+974 6678 8898',
+      value: '+974 3333 7592',
       href: WHATSAPP,
       green: true,
     },
@@ -75,7 +75,7 @@ export default function ContactClient() {
 
   const subjects = [
     t('استفسار عام', 'General Inquiry'),
-    t('طلب جملة', 'Wholesale Inquiry'),
+    t('طلبات الجملة', 'Wholesale Requests'),
     t('شكوى أو مقترح', 'Complaint / Suggestion'),
     t('دعم طلب', 'Order Support'),
     t('أخرى', 'Other'),
@@ -84,7 +84,7 @@ export default function ContactClient() {
   return (
     <>
       <Header />
-      <main className="pt-16" dir={dir}>
+      <main className="pt-24" dir={dir}>
 
         {/* Hero */}
         <section className="relative bg-charcoal py-24 overflow-hidden">
@@ -109,7 +109,7 @@ export default function ContactClient() {
         >
           <MessageCircle size={22} strokeWidth={1.5} />
           <span className="text-sm font-medium tracking-wide">
-            {t('تحدّث معنا مباشرةً على واتساب — +974 6678 8898', 'Chat with us directly on WhatsApp — +974 6678 8898')}
+            {t('تحدّث معنا مباشرةً على واتساب — +974 3333 7592', 'Chat with us directly on WhatsApp — +974 3333 7592')}
           </span>
         </a>
 

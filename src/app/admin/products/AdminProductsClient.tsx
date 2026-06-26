@@ -264,6 +264,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                       </div>
                       <div>
                         <p className="font-medium text-charcoal line-clamp-1">{p.name}</p>
+                        {p.weight && (
+                          <p className="text-xs text-sand mt-0.5">
+                            {p.weight.includes('|') ? p.weight.replace('|', ' · ') : p.weight}
+                          </p>
+                        )}
                         {p.sku && <p className="text-xs text-charcoal/40">{p.sku}</p>}
                       </div>
                     </div>

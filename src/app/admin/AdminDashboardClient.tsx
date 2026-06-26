@@ -1,11 +1,14 @@
 'use client'
+import { useCallback, useEffect, useState } from 'react'
 import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
-import { useLang } from '@/contexts/LanguageContext'
+import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
+import { fetchAdminOrdersOverview } from '@/lib/admin-orders'
+import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
 
 interface Props {
-  stats: { totalProducts: number; totalOrders: number; totalRevenue: number }
+  stats: { totalProducts: number; totalOrders: number; totalRevenue: number; pendingOrders: number }
   recentOrders: Order[]
 }
 
@@ -21,32 +24,71 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminDashboardClient({ stats, recentOrders }: Props) {
   const { t, dir } = useLang()
+  const [liveStats, setLiveStats] = useState(stats)
+  const [liveRecentOrders, setLiveRecentOrders] = useState(recentOrders)
+
+  const refreshOrdersOverview = useCallback(async () => {
+    const overview = await fetchAdminOrdersOverview()
+
+    setLiveStats((prev) => ({
+      ...prev,
+      totalOrders: overview.totalOrders,
+      totalRevenue: overview.totalRevenue,
+      pendingOrders: overview.pendingOrders,
+    }))
+    setLiveRecentOrders(overview.recentOrders)
+  }, [])
+
+  useEffect(() => {
+    setLiveStats(stats)
+  }, [stats])
+
+  useEffect(() => {
+    setLiveRecentOrders(recentOrders)
+  }, [recentOrders])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-dashboard-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          void refreshOrdersOverview()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [refreshOrdersOverview])
 
   const cards = [
     {
       label: t('إجمالي المنتجات', 'Total Products'),
-      value: stats.totalProducts,
+      value: liveStats.totalProducts,
       icon: Package,
       href: '/admin/products',
       unit: '',
     },
     {
       label: t('إجمالي الطلبات', 'Total Orders'),
-      value: stats.totalOrders,
+      value: liveStats.totalOrders,
       icon: ShoppingCart,
       href: '/admin/orders',
       unit: '',
     },
     {
       label: t('الإيرادات', 'Revenue'),
-      value: stats.totalRevenue.toFixed(0),
+      value: liveStats.totalRevenue.toFixed(0),
       icon: DollarSign,
       href: '/admin/orders',
       unit: t('ر.ق', 'QAR'),
     },
     {
       label: t('الطلبات المعلّقة', 'Pending Orders'),
-      value: recentOrders.filter((o) => o.status === 'pending').length,
+      value: liveStats.pendingOrders,
       icon: TrendingUp,
       href: '/admin/orders',
       unit: '',
@@ -88,13 +130,13 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
           </Link>
         </div>
 
-        {recentOrders.length === 0 ? (
+        {liveRecentOrders.length === 0 ? (
           <div className="py-16 text-center text-charcoal/30 text-sm tracking-widest">
             {t('لا توجد طلبات بعد', 'No orders yet')}
           </div>
         ) : (
           <div className="divide-y divide-sand/10">
-            {recentOrders.map((order) => (
+            {liveRecentOrders.map((order) => (
               <div key={order.id} className="px-6 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-charcoal">
@@ -112,7 +154,7 @@ export default function AdminDashboardClient({ stats, recentOrders }: Props) {
                     {(order.total ?? 0).toFixed(2)} {t('ر.ق', 'QAR')}
                   </span>
                   <span className={`text-[10px] tracking-widest uppercase px-2 py-1 ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {t(order.status, order.status)}
+                    {t(STATUS_LABELS[order.status]?.ar ?? order.status, STATUS_LABELS[order.status]?.en ?? order.status)}
                   </span>
                 </div>
               </div>

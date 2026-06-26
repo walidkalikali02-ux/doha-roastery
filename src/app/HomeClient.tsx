@@ -2,35 +2,75 @@
 import Link from 'next/link'
 import { useLang } from '@/contexts/LanguageContext'
 import ProductCard from '@/components/ProductCard'
+import ProductGroupCard, { ProductGroup, WeightVariant } from '@/components/ProductGroupCard'
 import GeometricPattern from '@/components/GeometricPattern'
 import { Product } from '@/lib/types'
+import { getBrandName } from '@/lib/display-text'
 
 interface Props { featured: Product[] }
+
+const WEIGHT_ORDER = ['100g', '250g', '500g', '1kg']
+
+// Homepage: group by name only — one card per product type regardless of origin
+function groupProducts(products: Product[]): Array<ProductGroup | Product> {
+  const groupMap = new Map<string, Product[]>()
+  const singles: Product[] = []
+
+  for (const product of products) {
+    if (product.weight) {
+      if (!groupMap.has(product.name)) groupMap.set(product.name, [])
+      groupMap.get(product.name)!.push(product)
+    } else {
+      singles.push(product)
+    }
+  }
+
+  const result: Array<ProductGroup | Product> = []
+
+  for (const [name, variants] of groupMap.entries()) {
+    const sorted = [...variants].sort(
+      (a, b) => WEIGHT_ORDER.indexOf(a.weight ?? '') - WEIGHT_ORDER.indexOf(b.weight ?? '')
+    )
+    const rep = sorted.find((v) => v.image_url) ?? sorted[0]
+    const weightVariants: WeightVariant[] = sorted.map((v) => ({
+      id: v.id,
+      weight: v.weight ?? '',
+      price: v.price,
+      in_stock: v.in_stock,
+      quantity: v.quantity,
+    }))
+    result.push({
+      baseName: name,
+      baseName_ar: rep.name_ar ?? null,
+      category: rep.category,
+      image_url: rep.image_url,
+      variants: weightVariants,
+      origin: null,
+    } satisfies ProductGroup)
+  }
+
+  result.push(...singles)
+  return result
+}
+
+function isGroup(item: ProductGroup | Product): item is ProductGroup {
+  return 'baseName' in item
+}
 
 export default function HomeClient({ featured }: Props) {
   const { t, dir } = useLang()
 
+  const grouped = groupProducts(featured).slice(0, 6)
+
   const bullets = [
-    {
-      ar: 'نورد القهوة لمقاهي في مختلف أنحاء قطر',
-      en: 'Supplying specialty coffee to cafés, offices, and hotels across Qatar',
-    },
-    {
-      ar: 'أكثر من 5 فروع تعمل يوميًا',
-      en: '5+ operating coffee shops',
-    },
-    {
-      ar: 'تحميص يومي داخل الدوحة',
-      en: 'Roasted fresh daily in Doha',
-    },
-    {
-      ar: 'ثقة آلاف العملاء',
-      en: 'Trusted by thousands of customers',
-    },
+    { ar: 'أكثر من 5 فروع لخدمة عملائنا في قطر',           en: '5+ branches serving our customers across Qatar' },
+    { ar: 'تحميص يومي لضمان أعلى درجات الجودة',            en: 'Daily roasting for the highest quality' },
+    { ar: 'شريك موثوق للمقاهي والشركات والفنادق',          en: 'Trusted partner for cafés, businesses and hotels' },
+    { ar: 'ثقة آلاف العملاء منذ سنوات',                     en: 'Trusted by thousands of customers for years' },
   ]
 
   return (
-    <main className="pt-16" dir={dir}>
+    <main className="pt-24" dir={dir}>
 
       {/* ── Hero ── */}
       <section className="relative min-h-[90vh] bg-charcoal flex items-end overflow-hidden">
@@ -39,23 +79,17 @@ export default function HomeClient({ featured }: Props) {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-sand to-transparent" />
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-6 pb-24">
-          {/* Eyebrow */}
           <div className="flex items-center gap-4 mb-8">
             <div className="h-px w-12 bg-sand" />
             <span className="text-sand text-xs tracking-[0.5em] uppercase">
-              {t('دوحة رواسترز', 'Doha Roastery — Qatar')}
+              {t('دوحة روستري — قطر', 'Doha Roastery — Qatar')}
             </span>
           </div>
 
-          {/* Main headline */}
           <h1 className="text-5xl md:text-7xl font-light text-cream leading-[1.1] tracking-tight mb-6 max-w-3xl">
-            {t(
-              'قهوة مختصة تُحمّص يوميًا في الدوحة',
-              'Specialty Coffee Roasted Fresh in Doha'
-            )}
+            {t('قهوة مختصة تُحمّص يوميًا في الدوحة', 'Specialty Coffee Roasted Fresh in Doha')}
           </h1>
 
-          {/* Subtext */}
           <p className="text-cream/60 text-lg font-light max-w-lg mb-10 leading-relaxed">
             {t(
               'نحضّرها يوميًا لعشاق القهوة والمقاهي. من محمصتنا إلى كوبك',
@@ -63,7 +97,6 @@ export default function HomeClient({ featured }: Props) {
             )}
           </p>
 
-          {/* Bullet trust signals */}
           <ul className="flex flex-col gap-2 mb-12">
             {bullets.map((b, i) => (
               <li key={i} className="flex items-center gap-3 text-cream/50 text-sm">
@@ -87,7 +120,6 @@ export default function HomeClient({ featured }: Props) {
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 start-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-cream/20">
           <span className="text-[10px] tracking-widest">{t('استكشف', 'SCROLL')}</span>
           <div className="w-px h-10 bg-sand/30" />
@@ -98,10 +130,10 @@ export default function HomeClient({ featured }: Props) {
       <section className="bg-cream-dark border-y border-sand/20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 divide-x divide-sand/20">
           {[
-            { num: t('٥+', '5+'),   label: t('فروع تعمل يوميًا', 'Daily Coffee Shops') },
-            { num: t('يومي', 'Daily'), label: t('تحميص طازج في الدوحة', 'Fresh Roasting in Doha') },
+            { num: t('٥+', '5+'),      label: t('فروع تعمل يوميًا', 'Daily Coffee Shops') },
+            { num: t('يومي', 'Daily'),  label: t('تحميص طازج في الدوحة', 'Fresh Roasting in Doha') },
             { num: t('آلاف', '1000s'), label: t('عميل موثوق', 'Trusted Customers') },
-            { num: t('قطر', 'Qatar'),  label: t('تغطية شاملة', 'Nationwide Coverage') },
+            { num: t('قطر', 'Qatar'),   label: t('تغطية شاملة', 'Nationwide Coverage') },
           ].map((stat, i) => (
             <div key={i} className="text-center py-8 px-4">
               <div className="text-2xl font-light text-charcoal mb-1">{stat.num}</div>
@@ -115,12 +147,8 @@ export default function HomeClient({ featured }: Props) {
       <section className="py-24 max-w-7xl mx-auto px-6">
         <div className="flex items-end justify-between mb-12">
           <div>
-            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">
-              {t('مختارات', 'Featured')}
-            </p>
-            <h2 className="text-4xl font-light text-charcoal">
-              {t('منتجاتنا المميزة', 'Our Picks')}
-            </h2>
+            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{t('مختارات', 'Featured')}</p>
+            <h2 className="text-4xl font-light text-charcoal">{t('منتجاتنا المميزة', 'Our Picks')}</h2>
           </div>
           <Link href="/products">
             <span className="text-xs tracking-widest uppercase text-charcoal border-b border-charcoal pb-0.5 hover:text-sand hover:border-sand transition-colors">
@@ -129,11 +157,15 @@ export default function HomeClient({ featured }: Props) {
           </Link>
         </div>
 
-        {featured.length > 0 ? (
+        {grouped.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {featured.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+            {grouped.map((item) =>
+              isGroup(item) ? (
+                <ProductGroupCard key={item.baseName} group={item} />
+              ) : (
+                <ProductCard key={(item as Product).id} product={item as Product} />
+              )
+            )}
           </div>
         ) : (
           <p className="text-center text-sand py-20 tracking-widest text-sm">
@@ -145,23 +177,17 @@ export default function HomeClient({ featured }: Props) {
       {/* ── Brand Story ── */}
       <section className="relative bg-charcoal overflow-hidden">
         <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-10" />
-
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 grid md:grid-cols-2 gap-16 items-center">
-          {/* Left: ornament */}
           <div className="hidden md:flex flex-col items-center justify-center gap-6">
             <div className="w-px h-24 bg-sand/30" />
             <div className="text-sand text-7xl select-none">☕</div>
             <div className="w-px h-24 bg-sand/30" />
             <p className="text-[10px] tracking-[0.5em] uppercase text-sand/50 [writing-mode:vertical-rl]">
-              Doha Roastery — Since 2018
+              {t('دوحة روستري — منذ 2018', 'Doha Roastery — Since 2018')}
             </p>
           </div>
-
-          {/* Right: story text */}
           <div>
-            <p className="text-xs tracking-[0.5em] uppercase text-sand mb-4">
-              {t('قصتنا', 'Our Story')}
-            </p>
+            <p className="text-xs tracking-[0.5em] uppercase text-sand mb-4">{t('قصتنا', 'Our Story')}</p>
             <p className="text-cream/80 text-xl md:text-2xl font-light leading-relaxed mb-8">
               {t(
                 'بدأت دوحة روستري بهدف واحد — تقديم قهوة استثنائية في قطر.',
@@ -180,10 +206,9 @@ export default function HomeClient({ featured }: Props) {
                 'Today, we proudly supply cafés and customers who value quality, consistency, and taste.'
               )}
             </p>
-
             <div className="mt-10 flex items-center gap-4">
               <span className="h-px w-8 bg-sand" />
-              <span className="text-sand text-xs tracking-widest uppercase">{t('دوحة رواسترز', 'Doha Roastery')}</span>
+              <span className="text-sand text-xs tracking-widest uppercase">{getBrandName(dir === 'rtl' ? 'ar' : 'en')}</span>
             </div>
           </div>
         </div>
@@ -192,12 +217,8 @@ export default function HomeClient({ featured }: Props) {
       {/* ── Wholesale CTA ── */}
       <section className="py-24 max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">
-            {t('للأعمال', 'For Business')}
-          </p>
-          <h2 className="text-4xl font-light text-charcoal mb-6">
-            {t('برنامج الجملة', 'Wholesale Program')}
-          </h2>
+          <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{t('للأعمال', 'For Business')}</p>
+          <h2 className="text-4xl font-light text-charcoal mb-6">{t('برنامج الجملة', 'Wholesale Program')}</h2>
           <p className="text-charcoal/60 leading-relaxed mb-8">
             {t(
               'نورد القهوة للمقاهي والفنادق والشركات في مختلف أنحاء قطر. تواصل معنا لمعرفة المزيد.',
@@ -210,8 +231,6 @@ export default function HomeClient({ featured }: Props) {
             </span>
           </Link>
         </div>
-
-        {/* Trust bullets panel */}
         <div className="relative bg-cream-dark border border-sand/20 p-10 overflow-hidden">
           <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-20" />
           <ul className="relative z-10 space-y-5">

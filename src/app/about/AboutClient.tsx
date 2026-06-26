@@ -38,7 +38,7 @@ export default function AboutClient() {
       icon: Award,
       title: t('شراكات موثوقة', 'Trusted Partnerships'),
       desc: t(
-        'نزوّد أكثر من 5 فروع ومقاهي وفنادق بالقهوة المتخصصة في قطر.',
+        'نزوّد أكثر من 5 فروع ومقاهي وفنادق بالقهوة المختصة في قطر.',
         'We supply specialty coffee to 5+ branches, cafés, and hotels across Qatar.'
       ),
     },
@@ -55,7 +55,7 @@ export default function AboutClient() {
   return (
     <>
       <Header />
-      <main className="pt-16" dir={dir}>
+      <main className="pt-24" dir={dir}>
 
         {/* Hero */}
         <section className="relative bg-charcoal py-28 overflow-hidden">

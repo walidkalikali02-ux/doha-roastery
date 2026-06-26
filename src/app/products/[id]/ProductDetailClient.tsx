@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext'
 import { Product } from '@/lib/types'
 import ProductCard from '@/components/ProductCard'
 import GeometricPattern from '@/components/GeometricPattern'
+import { ORIGIN_AR, QTY_AR, localizeCategory, localizeWeight } from '@/lib/display-text'
 
 export interface WeightVariant {
   id: string
@@ -23,6 +24,8 @@ interface Props {
 }
 
 const WEIGHT_ORDER = ['100g', '250g', '500g', '1kg']
+const COMPOUND_SEP = '|'
+const QTY_ORDER = ['Single Serve', '1 Box', '5 Bags', '10 Bags', 'Box of 8', '5 Boxes']
 
 const GRIND_OPTIONS = [
   { value: 'whole-bean',   ar: 'حبوب كاملة', en: 'Whole Bean' },
@@ -37,17 +40,32 @@ export default function ProductDetailClient({ product, weightVariants, related }
   const { addItem } = useCart()
 
   const isWeightProduct = weightVariants.length > 0
-  const isCoffeeBeans   = product.category === 'Coffee Beans'
+  // Turkish coffee is always pre-ground, so no grind selector
+  const isTurkishCoffee = /turkish/i.test(product.name) || /تركي/.test(product.name_ar ?? '')
+  const isCoffeeBeans   = product.category === 'Coffee Beans' && !isTurkishCoffee
 
-  const [selectedVariantId, setSelectedVariantId] = useState(product.id)
-  const [grind, setGrind] = useState('whole-bean')
-  const [notes, setNotes] = useState('')
-  const [qty, setQty] = useState(1)
-  const [added, setAdded] = useState(false)
+  const isCompound    = weightVariants.some((v) => v.weight.includes(COMPOUND_SEP))
+  const isWeightBased = !isCompound && weightVariants.some((v) => /^\d+(g|kg)$/i.test(v.weight))
 
-  const selectedVariant = isWeightProduct
-    ? (weightVariants.find((v) => v.id === selectedVariantId) ?? weightVariants[0])
+  // For compound pages, all variants share the same origin (per-origin pages)
+  const compoundOrigin = isCompound ? weightVariants[0].weight.split(COMPOUND_SEP)[0] : null
+
+  const defaultCompoundVariant = isCompound
+    ? (weightVariants.find((v) => v.in_stock && v.quantity > 0) ?? weightVariants[0])
     : null
+
+  const [selectedVariantId,   setSelectedVariantId]   = useState(product.id)
+  const [selectedCompoundId,  setSelectedCompoundId]  = useState(defaultCompoundVariant?.id ?? '')
+  const [grind,  setGrind]  = useState('whole-bean')
+  const [notes,  setNotes]  = useState('')
+  const [qty,    setQty]    = useState(1)
+  const [added,  setAdded]  = useState(false)
+
+  const selectedVariant = isCompound
+    ? (weightVariants.find((v) => v.id === selectedCompoundId) ?? weightVariants[0])
+    : isWeightProduct
+      ? (weightVariants.find((v) => v.id === selectedVariantId) ?? weightVariants[0])
+      : null
 
   const displayPrice    = selectedVariant ? selectedVariant.price    : product.price
   const displayInStock  = selectedVariant
@@ -61,25 +79,23 @@ export default function ProductDetailClient({ product, weightVariants, related }
     ? Math.round(((product.compare_at_price! - product.price) / product.compare_at_price!) * 100)
     : 0
 
-  const isWeightBased = weightVariants.some(v => /^\d+(g|kg)$/i.test(v.weight))
-
   const orderedVariants = [...weightVariants].sort(
     (a, b) => WEIGHT_ORDER.indexOf(a.weight) - WEIGHT_ORDER.indexOf(b.weight)
   )
 
   function handleAdd() {
-    const itemId     = selectedVariant ? selectedVariant.id       : product.id
-    const itemWeight = selectedVariant ? selectedVariant.weight   : (product.weight ?? '')
-    const itemPrice  = selectedVariant ? selectedVariant.price    : product.price
+    const itemId     = selectedVariant ? selectedVariant.id     : product.id
+    const itemWeight = selectedVariant ? selectedVariant.weight : (product.weight ?? '')
+    const itemPrice  = selectedVariant ? selectedVariant.price  : product.price
 
     for (let i = 0; i < qty; i++) {
       addItem({
-        id: itemId,
-        name: product.name,
-        weight: itemWeight,
-        grind: isCoffeeBeans ? grind : '',
+        id:        itemId,
+        name:      product.name,
+        weight:    itemWeight,
+        grind:     isCoffeeBeans ? grind : '',
         notes,
-        price: itemPrice,
+        price:     itemPrice,
         image_url: product.image_url,
       })
     }
@@ -88,7 +104,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
   }
 
   return (
-    <main className="pt-16 min-h-screen" dir={dir}>
+    <main className="pt-24 min-h-screen" dir={dir}>
       {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-xs text-charcoal/40">
         <Link href="/" className="hover:text-sand transition-colors">{t('الرئيسية', 'Home')}</Link>
@@ -96,7 +112,10 @@ export default function ProductDetailClient({ product, weightVariants, related }
         <Link href="/products" className="hover:text-sand transition-colors">{t('المنتجات', 'Products')}</Link>
         <ChevronRight size={12} className={dir === 'rtl' ? 'rotate-180' : ''} />
         <span className="text-charcoal truncate max-w-[200px]">
-          {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+          {isCompound && compoundOrigin
+            ? (lang === 'ar' ? (ORIGIN_AR[compoundOrigin] ?? compoundOrigin) : compoundOrigin)
+            : (lang === 'ar' && product.name_ar ? product.name_ar : product.name)
+          }
         </span>
       </div>
 
@@ -134,12 +153,24 @@ export default function ProductDetailClient({ product, weightVariants, related }
         {/* Info panel */}
         <div className="flex flex-col">
           {product.category && (
-            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{product.category}</p>
+            <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{localizeCategory(product.category, lang)}</p>
           )}
 
-          <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-2">
-            {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
-          </h1>
+          {isCompound && compoundOrigin && (
+            <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-1">
+              {lang === 'ar' ? (ORIGIN_AR[compoundOrigin] ?? compoundOrigin) : compoundOrigin}
+            </h1>
+          )}
+          {isCompound && (
+            <p className="text-sm text-charcoal/50 mb-2">
+              {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+            </p>
+          )}
+          {!isCompound && (
+            <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-2">
+              {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+            </h1>
+          )}
 
           {product.tags && product.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
@@ -159,8 +190,42 @@ export default function ProductDetailClient({ product, weightVariants, related }
 
           <div className="h-px bg-sand/20 mb-5" />
 
-          {/* Weight selector */}
-          {isWeightProduct && orderedVariants.length > 1 && (
+          {/* Compound — quantity selector only (one page per origin) */}
+          {isCompound && weightVariants.length > 1 && (
+            <div className="mb-5">
+              <p className="text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
+                {t('الكمية', 'Quantity')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[...weightVariants].sort((a, b) => {
+                  const qa = a.weight.split(COMPOUND_SEP)[1]
+                  const qb = b.weight.split(COMPOUND_SEP)[1]
+                  return QTY_ORDER.indexOf(qa) - QTY_ORDER.indexOf(qb)
+                }).map((v) => {
+                  const qty         = v.weight.split(COMPOUND_SEP)[1]
+                  const unavailable = !v.in_stock || v.quantity === 0
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => { setSelectedCompoundId(v.id); setQty(1) }}
+                      disabled={unavailable}
+                      className={`flex items-center gap-2 px-3 py-2 text-xs border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                        selectedCompoundId === v.id
+                          ? 'bg-charcoal text-cream border-charcoal'
+                          : 'border-sand/40 text-charcoal hover:border-charcoal'
+                      }`}
+                    >
+                      <span className="font-medium">{lang === 'ar' ? (QTY_AR[qty] ?? qty) : qty}</span>
+                      <span className="opacity-60">{v.price.toFixed(0)} {t('ر.ق', 'QAR')}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Simple weight/type selector */}
+          {!isCompound && isWeightProduct && orderedVariants.length > 1 && (
             <div className="mb-5">
               <p className="text-[10px] tracking-widest uppercase text-charcoal/50 mb-2">
                 {isWeightBased ? t('الوزن', 'Weight') : t('النوع', 'Type')}
@@ -179,7 +244,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                           : 'border-sand/40 text-charcoal hover:border-charcoal'
                       }`}
                     >
-                      <span className="font-medium">{v.weight}</span>
+                      <span className="font-medium">{localizeWeight(v.weight, lang)}</span>
                       <span className="opacity-60">{v.price.toFixed(0)} {t('ر.ق', 'QAR')}</span>
                     </button>
                   )

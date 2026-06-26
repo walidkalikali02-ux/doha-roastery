@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Product } from '@/lib/types'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -29,6 +29,17 @@ export async function generateMetadata({
   const description = p.description
     ?? `Buy ${p.name} in Qatar. Freshly roasted specialty coffee at Doha Roastery. Free delivery over 200 QAR.`
 
+  // Find the canonical ID: first active product with this name (consistent across all variants)
+  const { data: canonical } = await supabase
+    .from('ecommerce_products')
+    .select('id')
+    .eq('status', 'active')
+    .eq('name', p.name)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single()
+  const canonicalId = canonical?.id ?? id
+
   return {
     title,
     description,
@@ -44,7 +55,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/products/${id}`,
+      url: `${SITE_URL}/products/${canonicalId}`,
       siteName: 'Doha Roastery',
       images: p.image_url
         ? [{ url: p.image_url, width: 1200, height: 630, alt: p.name }]
@@ -58,7 +69,7 @@ export async function generateMetadata({
       description,
       images: p.image_url ? [p.image_url] : [],
     },
-    alternates: { canonical: `${SITE_URL}/products/${id}` },
+    alternates: { canonical: `${SITE_URL}/products/${canonicalId}` },
   }
 }
 
@@ -88,17 +99,32 @@ export default async function ProductPage({
       .select('id, weight, price, in_stock, quantity')
       .eq('status', 'active')
       .eq('name', p.name)
+      .order('created_at', { ascending: true })
 
     if (siblings) {
-      weightVariants = (siblings as Array<{ id: string; weight: string; price: number; in_stock: boolean; quantity: number }>)
+      const allVariants = (siblings as Array<{ id: string; weight: string; price: number; in_stock: boolean; quantity: number }>)
         .filter((s) => s.weight)
-        .map((s) => ({
-          id: s.id,
-          weight: s.weight,
-          price: Number(s.price),
-          in_stock: Boolean(s.in_stock),
-          quantity: Number(s.quantity),
-        }))
+
+      // For compound variants (Origin|Qty), only show siblings with the same origin
+      const isCompound = p.weight.includes('|')
+      const origin = isCompound ? p.weight.split('|')[0] : null
+
+      const filtered = isCompound && origin
+        ? allVariants.filter((s) => s.weight.startsWith(origin + '|'))
+        : allVariants
+
+      weightVariants = filtered.map((s) => ({
+        id: s.id,
+        weight: s.weight,
+        price: Number(s.price),
+        in_stock: Boolean(s.in_stock),
+        quantity: Number(s.quantity),
+      }))
+    }
+
+    // Redirect non-canonical variant URLs to the canonical (oldest) for this origin group
+    if (weightVariants.length > 0 && weightVariants[0].id !== id) {
+      redirect(`/products/${weightVariants[0].id}`)
     }
   }
 

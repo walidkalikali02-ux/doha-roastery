@@ -1,24 +1,20 @@
+import type { ComponentProps } from 'react'
+import { fetchAdminOrdersOverview } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import AdminDashboardClient from './AdminDashboardClient'
 
 export default async function AdminDashboardPage() {
-  const [{ count: totalProducts }, { count: totalOrders }, { data: recentOrders }] = await Promise.all([
+  const [{ count: totalProducts }, orderOverview] = await Promise.all([
     supabase.from('ecommerce_products').select('*', { count: 'exact', head: true }),
-    supabase.from('orders').select('*', { count: 'exact', head: true }),
-    supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(5),
+    fetchAdminOrdersOverview(),
   ])
 
-  const { data: revenueData } = await supabase
-    .from('orders')
-    .select('total')
-    .eq('status', 'delivered')
+  const stats: ComponentProps<typeof AdminDashboardClient>['stats'] = {
+    totalProducts: totalProducts ?? 0,
+    totalOrders: orderOverview.totalOrders,
+    totalRevenue: orderOverview.totalRevenue,
+    pendingOrders: orderOverview.pendingOrders,
+  }
 
-  const totalRevenue = (revenueData ?? []).reduce((sum, o) => sum + (o.total ?? 0), 0)
-
-  return (
-    <AdminDashboardClient
-      stats={{ totalProducts: totalProducts ?? 0, totalOrders: totalOrders ?? 0, totalRevenue }}
-      recentOrders={recentOrders ?? []}
-    />
-  )
+  return <AdminDashboardClient stats={stats} recentOrders={orderOverview.recentOrders} />
 }

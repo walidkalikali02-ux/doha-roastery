@@ -4,9 +4,17 @@ import { useLang } from '@/contexts/LanguageContext'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GeometricPattern from '@/components/GeometricPattern'
-import { CheckCircle, Package, Truck, HeartHandshake, MessageCircle } from 'lucide-react'
+import { CheckCircle, Package, Truck, HeartHandshake } from 'lucide-react'
 
-const WHATSAPP_NUMBER = '97466788898'
+function WhatsAppIcon({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.464 3.488"/>
+    </svg>
+  )
+}
+
+const WHATSAPP_NUMBER = '97433337592'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
 
 export default function WholesaleClient() {
@@ -47,7 +55,7 @@ export default function WholesaleClient() {
   return (
     <>
       <Header />
-      <main className="pt-16" dir={dir}>
+      <main className="pt-24" dir={dir}>
         {/* Hero */}
         <section className="relative bg-charcoal py-28 overflow-hidden">
           <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-20" />
@@ -80,33 +88,6 @@ export default function WholesaleClient() {
           </div>
         </section>
 
-        {/* Pricing tiers */}
-        <section className="bg-cream-dark py-20">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="text-center mb-14">
-              <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{t('الأسعار', 'Pricing')}</p>
-              <h2 className="text-4xl font-light text-charcoal">{t('خطط الجملة', 'Wholesale Tiers')}</h2>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                { tier: t('برونزي', 'Bronze'), qty: '10–50 كجم / 10–50 kg', disc: '10%', color: 'border-sand' },
-                { tier: t('فضي', 'Silver'), qty: '51–150 كجم / 51–150 kg', disc: '18%', color: 'border-gold bg-charcoal text-cream' },
-                { tier: t('ذهبي', 'Gold'), qty: '150+ كجم / 150+ kg', disc: '25%', color: 'border-sand' },
-              ].map((t2, i) => (
-                <div
-                  key={i}
-                  className={`border-2 p-10 text-center ${t2.color} ${i === 1 ? 'text-cream' : 'text-charcoal'}`}
-                >
-                  <div className="text-xs tracking-widest uppercase mb-4 text-sand">{t2.tier}</div>
-                  <div className="text-5xl font-light mb-3">{t2.disc}</div>
-                  <div className="text-xs tracking-widest opacity-60 uppercase mb-6">{t('خصم', 'Discount')}</div>
-                  <div className="text-sm opacity-70">{t2.qty}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Contact form */}
         <section className="py-24 max-w-3xl mx-auto px-6">
           <div className="text-center mb-12">
@@ -122,13 +103,13 @@ export default function WholesaleClient() {
             className="flex items-center justify-between gap-4 bg-[#25D366] text-white px-6 py-5 mb-10 hover:bg-[#1ebe5d] transition-colors group"
           >
             <div className="flex items-center gap-4">
-              <MessageCircle size={28} strokeWidth={1.5} className="flex-shrink-0" />
+              <span className="flex-shrink-0"><WhatsAppIcon size={28} /></span>
               <div>
                 <p className="text-sm font-medium tracking-wide">
                   {t('تواصل معنا عبر واتساب', 'Contact us on WhatsApp')}
                 </p>
                 <p className="text-white/70 text-xs mt-0.5 tracking-widest">
-                  +974 6678 8898
+                  +974 3333 7592
                 </p>
               </div>
             </div>
@@ -161,7 +142,7 @@ export default function WholesaleClient() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 bg-[#25D366] text-white px-6 py-3 text-sm tracking-widest uppercase hover:bg-[#1ebe5d] transition-colors"
               >
-                <MessageCircle size={16} strokeWidth={1.5} />
+                <WhatsAppIcon size={16} />
                 {t('تواصل عبر واتساب', 'Chat on WhatsApp')}
               </a>
             </div>
@@ -203,8 +184,9 @@ export default function WholesaleClient() {
               <div className="md:col-span-2">
                 <button
                   type="submit"
-                  className="w-full bg-charcoal text-cream py-4 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors"
+                  className="w-full bg-charcoal text-cream py-4 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors inline-flex items-center justify-center gap-3"
                 >
+                  <WhatsAppIcon size={18} />
                   {t('إرسال الطلب', 'Send Request')}
                 </button>
               </div>

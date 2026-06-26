@@ -6,15 +6,24 @@ const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: products } = await supabase
     .from('ecommerce_products')
-    .select('id, updated_at')
+    .select('id, name, updated_at')
     .eq('status', 'active')
+    .order('created_at', { ascending: true })
 
-  const productUrls: MetadataRoute.Sitemap = (products ?? []).map((p) => ({
-    url: `${SITE_URL}/products/${p.id}`,
-    lastModified: new Date(p.updated_at),
-    changeFrequency: 'weekly',
-    priority: 0.8,
-  }))
+  // Deduplicate by name — grouped variants share one canonical URL (first representative)
+  const seen = new Set<string>()
+  const productUrls: MetadataRoute.Sitemap = (products ?? [])
+    .filter((p) => {
+      if (seen.has(p.name)) return false
+      seen.add(p.name)
+      return true
+    })
+    .map((p) => ({
+      url: `${SITE_URL}/products/${p.id}`,
+      lastModified: new Date(p.updated_at),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    }))
 
   return [
     { url: SITE_URL,                       lastModified: new Date(), changeFrequency: 'daily',   priority: 1.0 },

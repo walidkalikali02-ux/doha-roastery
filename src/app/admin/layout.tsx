@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="px-6 py-6 border-b border-cream/10">
           <div className="text-lg font-light tracking-[0.2em] text-cream uppercase">
-            {t('دوحة', 'DOHA')}
+            Doha Roastery
           </div>
           <div className="text-[9px] tracking-[0.5em] text-sand uppercase mt-0.5">
             {t('الإدارة', 'ADMIN')}

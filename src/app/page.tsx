@@ -12,7 +12,7 @@ const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 export const metadata: Metadata = {
   title: 'Doha Roastery | Specialty Coffee Qatar — قهوة مختصة في الدوحة',
   description:
-    'اشترِ القهوة المتخصصة في قطر من دوحة روستري. حبوب قهوة أحادية المصدر، كبسولات نسبريسو، أكياس دريب، وشاي ماتشا. محمصة يومياً في الدوحة. توصيل مجاني فوق ٢٠٠ ريال. Buy specialty coffee in Qatar — freshly roasted daily in Doha.',
+    'اشترِ القهوة المختصة في قطر من دوحة روستري. حبوب قهوة أحادية المصدر، كبسولات نسبريسو، أكياس دريب، وشاي ماتشا. محمصة يومياً في الدوحة. توصيل مجاني فوق ٢٠٠ ريال. Buy specialty coffee in Qatar — freshly roasted daily in Doha.',
   keywords:
     'specialty coffee Qatar, buy coffee Doha, قهوة مختصة قطر, دوحة روستري, Doha Roastery, coffee beans Qatar, Nespresso capsules Qatar, drip coffee Qatar, قهوة مختصة الدوحة, محمصة قهوة قطر, حبوب قهوة قطر',
   alternates: { canonical: SITE_URL },
@@ -34,7 +34,7 @@ export default async function HomePage() {
     .eq('status', 'active')
     .eq('in_stock', true)
     .order('created_at', { ascending: false })
-    .limit(6)
+    .limit(40)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -45,7 +45,7 @@ export default async function HomePage() {
     logo: `${SITE_URL}/logo.png`,
     description: 'Specialty coffee roasted fresh daily in Doha, Qatar.',
     address: { '@type': 'PostalAddress', addressLocality: 'Doha', addressCountry: 'QA' },
-    telephone: '+97466788898',
+    telephone: '+97433337592',
     email: 'info@doharoastery.com',
     openingHours: 'Sa-Th 08:00-22:00',
     priceRange: '$$',

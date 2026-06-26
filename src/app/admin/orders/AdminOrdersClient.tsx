@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown, Search, RefreshCw } from 'lucide-react'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
+import { fetchAdminOrders } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
 
@@ -28,6 +29,55 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
   const [updating, setUpdating] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  const refreshOrders = useCallback(async () => {
+    const nextOrders = await fetchAdminOrders()
+    setOrders(nextOrders)
+  }, [])
+
+  useEffect(() => {
+    setOrders(initialOrders)
+  }, [initialOrders])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-orders-management')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new as Order
+            setOrders((prev) => [newOrder, ...prev.filter((order) => order.id !== newOrder.id)])
+            return
+          }
+
+          if (payload.eventType === 'UPDATE') {
+            const updatedOrder = payload.new as Order
+            setOrders((prev) => {
+              const hasOrder = prev.some((order) => order.id === updatedOrder.id)
+              if (!hasOrder) return [updatedOrder, ...prev]
+              return prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order))
+            })
+            return
+          }
+
+          if (payload.eventType === 'DELETE') {
+            const deletedOrderId = (payload.old as { id?: string }).id
+            if (deletedOrderId) {
+              setOrders((prev) => prev.filter((order) => order.id !== deletedOrderId))
+            } else {
+              void refreshOrders()
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [refreshOrders])
+
   const filtered = orders.filter((o) => {
     const matchSearch =
       !search ||
@@ -46,7 +96,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
       .select()
       .single()
     if (!error && data) {
-      setOrders(orders.map((o) => (o.id === id ? (data as Order) : o)))
+      setOrders((prev) => prev.map((o) => (o.id === id ? (data as Order) : o)))
     }
     setUpdating(null)
   }
