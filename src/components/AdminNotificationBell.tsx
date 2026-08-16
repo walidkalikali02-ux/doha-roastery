@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Bell, X, ShoppingBag } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLang } from '@/contexts/LanguageContext'
+import { toArabicDigits } from '@/lib/display-text'
 
 interface OrderNotification {
   id: string
@@ -47,20 +48,22 @@ export default function AdminNotificationBell() {
           setToast(newNote)
           // Auto-hide toast after 6 seconds
           setTimeout(() => setToast(null), 6000)
-          // Browser notification if permitted
-          if (Notification.permission === 'granted') {
-            new Notification(t('طلب جديد! 🛍', 'New Order! 🛍'), {
-              body: `${newNote.order_number} — ${Number(newNote.total).toFixed(2)} QAR`,
-              icon: '/favicon.ico',
-            })
+          // Browser notification if permitted (not supported on iOS Safari)
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+              new Notification(t('طلب جديد! 🛍', 'New Order! 🛍'), {
+                body: `${newNote.order_number} — ${Number(newNote.total).toFixed(2)} QAR`,
+                icon: '/favicon.ico',
+              })
+            } catch { /* ignore notification errors */ }
           }
         }
       )
       .subscribe()
 
-    // Request browser notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission()
+    // Request browser notification permission (not supported on iOS Safari)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      try { Notification.requestPermission() } catch { /* ignore */ }
     }
 
     return () => { supabase.removeChannel(channel) }
@@ -95,9 +98,9 @@ export default function AdminNotificationBell() {
   function timeAgo(dateStr: string) {
     const diff = (Date.now() - new Date(dateStr).getTime()) / 1000
     if (diff < 60) return t('الآن', 'just now')
-    if (diff < 3600) return t(`${Math.floor(diff / 60)} دقيقة`, `${Math.floor(diff / 60)}m ago`)
-    if (diff < 86400) return t(`${Math.floor(diff / 3600)} ساعة`, `${Math.floor(diff / 3600)}h ago`)
-    return t(`${Math.floor(diff / 86400)} يوم`, `${Math.floor(diff / 86400)}d ago`)
+    if (diff < 3600) return t(`${toArabicDigits(Math.floor(diff / 60))} دقيقة`, `${Math.floor(diff / 60)}m ago`)
+    if (diff < 86400) return t(`${toArabicDigits(Math.floor(diff / 3600))} ساعة`, `${Math.floor(diff / 3600)}h ago`)
+    return t(`${toArabicDigits(Math.floor(diff / 86400))} يوم`, `${Math.floor(diff / 86400)}d ago`)
   }
 
   return (
@@ -111,7 +114,7 @@ export default function AdminNotificationBell() {
         <Bell size={18} strokeWidth={1.5} />
         {unread > 0 && (
           <span className="absolute -top-0.5 -end-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
-            {unread > 9 ? '9+' : unread}
+             <bdi dir="ltr">{unread > 9 ? '9+' : unread}</bdi>
           </span>
         )}
       </button>
@@ -133,8 +136,8 @@ export default function AdminNotificationBell() {
             </div>
             <p className="text-sm font-medium mb-1">{toast.order_number}</p>
             <p className="text-xs text-cream/60">
-              {toast.customer_name || toast.customer_email || t('ضيف', 'Guest')}
-              {' — '}{Number(toast.total).toFixed(2)} QAR
+               {toast.customer_name || toast.customer_email || t('ضيف', 'Guest')}
+               {' — '}<bdi dir="ltr">{Number(toast.total).toFixed(2)} QAR</bdi>
             </p>
           </div>
         </div>
@@ -147,7 +150,7 @@ export default function AdminNotificationBell() {
             <p className="text-xs tracking-widest uppercase text-charcoal">
               {t('الإشعارات', 'Notifications')}
               {unread > 0 && (
-                <span className="ms-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unread}</span>
+                 <span className="ms-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full"><bdi dir="ltr">{unread}</bdi></span>
               )}
             </p>
             {unread > 0 && (
@@ -180,7 +183,7 @@ export default function AdminNotificationBell() {
                       {n.customer_name || n.customer_email || t('ضيف', 'Guest')}
                     </p>
                     <p className="text-xs font-medium text-sand mt-0.5">
-                      {Number(n.total).toFixed(2)} QAR · {n.items_count} {t('منتجات', 'items')}
+                      <bdi dir="ltr">{Number(n.total).toFixed(2)} QAR</bdi> · <bdi dir="ltr">{n.items_count}</bdi> {t('منتجات', 'items')}
                     </p>
                   </div>
                 </div>
