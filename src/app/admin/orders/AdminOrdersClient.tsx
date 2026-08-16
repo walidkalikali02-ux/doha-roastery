@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Search, X, RefreshCw, CreditCard, Banknote, ChevronRight } from 'lucide-react'
+import { Search, X, RefreshCw, CreditCard, Banknote, ChevronRight, MessageCircle } from 'lucide-react'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
 import { fetchAdminOrders } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
@@ -101,6 +101,40 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
   function closeDrawer() {
     setSelectedOrder(null)
     setItems([])
+  }
+
+  function shareOnWhatsApp(order: Order, orderItems: OrderItem[]) {
+    const addr = order.shipping_address ?? {}
+    const name = [addr.first_name, addr.last_name].filter(Boolean).join(' ') || order.guest_email || '—'
+    const isCard = !!(order.mf_invoice_id)
+    const paymentLabel = isCard ? 'Card' : 'Cash on Delivery'
+    const statusLabel = STATUS_LABELS[order.status]?.en ?? order.status
+
+    const itemLines = orderItems.length
+      ? orderItems.map((i) => `  • ${i.product_name ?? '—'}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — ${((i.unit_price ?? 0) * (i.quantity ?? 1)).toFixed(2)} QAR`).join('\n')
+      : '  —'
+
+    const lines = [
+      `🛍️ *Order ${order.order_number ?? order.id.slice(0, 8)}*`,
+      `📅 ${formatDate(order.created_at)}`,
+      `👤 ${name}`,
+      addr.phone ? `📞 ${addr.phone}` : null,
+      `📍 ${[addr.address, addr.area, addr.city].filter(Boolean).join(', ') || '—'}`,
+      ``,
+      `*Items:*`,
+      itemLines,
+      ``,
+      `💳 Payment: ${paymentLabel}`,
+      `📦 Status: ${statusLabel}`,
+      ``,
+      `💰 Subtotal: ${order.subtotal.toFixed(2)} QAR`,
+      order.shipping_cost > 0 ? `🚚 Shipping: ${order.shipping_cost.toFixed(2)} QAR` : null,
+      order.discount_amount > 0 ? `🏷️ Discount: -${order.discount_amount.toFixed(2)} QAR` : null,
+      `✅ *Total: ${(order.total ?? 0).toFixed(2)} QAR*`,
+    ].filter((l) => l !== null).join('\n')
+
+    const url = `https://wa.me/?text=${encodeURIComponent(lines)}`
+    window.open(url, '_blank')
   }
 
   async function updateStatus(id: string, status: Order['status']) {
@@ -300,8 +334,16 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                   </h2>
                   <p className="text-xs text-gray-400 mt-0.5">{formatDate(selectedOrder.created_at)}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <StatusBadge status={selectedOrder.status} />
+                  <button
+                    onClick={() => shareOnWhatsApp(selectedOrder, items)}
+                    title="Share on WhatsApp"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#25D366] hover:bg-[#1ebe5d] rounded-lg transition-colors"
+                  >
+                    <MessageCircle size={13} />
+                    {t('واتساب', 'WhatsApp')}
+                  </button>
                   <button onClick={closeDrawer} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                     <X size={18} />
                   </button>
