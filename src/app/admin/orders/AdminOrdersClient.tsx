@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search, X, RefreshCw, CreditCard, Banknote, ChevronRight, MessageCircle } from 'lucide-react'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
+import { formatOrderNumber } from '@/lib/display-text'
 import { fetchAdminOrders } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
@@ -115,7 +116,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
       : '  —'
 
     const lines = [
-      `🛍️ *Order ${order.order_number ?? order.id.slice(0, 8)}*`,
+      `🛍️ *Order ${formatOrderNumber(order)}*`,
       `📅 ${formatDate(order.created_at)}`,
       `👤 ${name}`,
       addr.phone ? `📞 ${addr.phone}` : null,
@@ -273,7 +274,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                   {/* Order # */}
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-gray-900">
-                      {order.order_number ?? `#${order.id.slice(0, 8)}`}
+                      {formatOrderNumber(order)}
                     </span>
                     <span className="text-xs text-gray-400 md:hidden mt-0.5">{formatDate(order.created_at)}</span>
                   </div>
@@ -330,7 +331,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">
-                    {selectedOrder.order_number ?? `#${selectedOrder.id.slice(0, 8)}`}
+                    {formatOrderNumber(selectedOrder)}
                   </h2>
                   <p className="text-xs text-gray-400 mt-0.5">{formatDate(selectedOrder.created_at)}</p>
                 </div>

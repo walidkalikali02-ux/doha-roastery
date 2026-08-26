@@ -6,12 +6,14 @@ import { Package, LogOut, User, ChevronDown } from 'lucide-react'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { formatOrderNumber } from '@/lib/display-text'
 import { Order } from '@/lib/types'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 const STATUS_COLORS: Record<string, string> = {
   pending:        'bg-yellow-50 text-yellow-700 border-yellow-200',
+  paid:           'bg-emerald-50 text-emerald-700 border-emerald-200',
   confirmed:      'bg-blue-50 text-blue-700 border-blue-200',
   processing:     'bg-indigo-50 text-indigo-700 border-indigo-200',
   shipped:        'bg-purple-50 text-purple-700 border-purple-200',
@@ -27,6 +29,7 @@ export default function AccountPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [fetching, setFetching] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
@@ -35,16 +38,31 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('orders')
-      .select('*')
-      .or(`user_id.eq.${user.id},customer_id.eq.${user.id}`)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
+
+    const userId = user.id
+    let cancelled = false
+    async function loadOrders() {
+      setFetching(true)
+      setLoadError(null)
+      await supabase.rpc('claim_guest_orders')
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .or(`user_id.eq.${userId},customer_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+
+      if (cancelled) return
+      if (error) {
+        setLoadError(t('تعذر تحميل الطلبات.', 'Could not load orders.'))
+      } else {
         setOrders((data as Order[]) ?? [])
-        setFetching(false)
-      })
-  }, [user])
+      }
+      setFetching(false)
+    }
+
+    void loadOrders()
+    return () => { cancelled = true }
+  }, [user, t])
 
   async function handleSignOut() {
     await signOut()
@@ -102,6 +120,10 @@ export default function AccountPage() {
               <div className="py-16 text-center text-sand text-sm tracking-widest">
                 {t('جاري التحميل...', 'Loading...')}
               </div>
+            ) : loadError ? (
+              <div className="py-16 text-center border border-red-100 bg-red-50 text-red-500 text-sm">
+                {loadError}
+              </div>
             ) : orders.length === 0 ? (
               <div className="py-20 text-center border border-sand/20">
                 <Package size={36} strokeWidth={1} className="text-sand/40 mx-auto mb-4" />
@@ -128,7 +150,7 @@ export default function AccountPage() {
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-charcoal">
-                          {order.order_number ?? `#${order.id.slice(0, 8)}`}
+                          {formatOrderNumber(order)}
                         </p>
                         <p className="text-xs text-charcoal/40 mt-0.5">
                           {new Date(order.created_at).toLocaleDateString(
@@ -141,7 +163,7 @@ export default function AccountPage() {
                         {t(STATUS_LABELS[order.status]?.ar ?? order.status, STATUS_LABELS[order.status]?.en ?? order.status)}
                       </span>
                       <span className="text-sm text-charcoal flex-shrink-0">
-                        {(order.total ?? 0).toFixed(2)} {t('ر.ق', 'QAR')}
+                          <bdi dir="ltr">{(order.total ?? 0).toFixed(2)}</bdi> {t('ر.ق', 'QAR')}
                       </span>
                     </div>
 
@@ -156,7 +178,7 @@ export default function AccountPage() {
                           ].map((item) => (
                             <div key={item.label}>
                               <p className="text-[10px] tracking-widest uppercase text-charcoal/40 mb-1">{item.label}</p>
-                              <p className="font-medium text-charcoal">{item.value}</p>
+                               <p className="font-medium text-charcoal"><bdi dir="ltr">{item.value}</bdi></p>
                             </div>
                           ))}
                         </div>
@@ -169,6 +191,16 @@ export default function AccountPage() {
                               {Object.values(order.shipping_address).filter(Boolean).join('، ')}
                             </p>
                           </div>
+                        )}
+                        {['pending', 'payment_failed'].includes(order.status) && order.mf_payment_url && (
+                          <a
+                            href={order.mf_payment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block mt-4 bg-charcoal text-cream px-4 py-2 text-xs tracking-widest uppercase hover:bg-charcoal-light transition-colors"
+                          >
+                            {t('استكمال الدفع', 'Continue Payment')}
+                          </a>
                         )}
                       </div>
                     )}

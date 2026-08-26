@@ -52,7 +52,7 @@ export default function AdminNotificationBell() {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             try {
               new Notification(t('طلب جديد! 🛍', 'New Order! 🛍'), {
-                body: `${newNote.order_number} — ${Number(newNote.total).toFixed(2)} QAR`,
+                body: `#${newNote.order_number} — ${Number(newNote.total).toFixed(2)} QAR`,
                 icon: '/favicon.ico',
               })
             } catch { /* ignore notification errors */ }
@@ -134,7 +134,7 @@ export default function AdminNotificationBell() {
                 <X size={14} strokeWidth={2} />
               </button>
             </div>
-            <p className="text-sm font-medium mb-1">{toast.order_number}</p>
+            <p className="text-sm font-medium mb-1">#{toast.order_number}</p>
             <p className="text-xs text-cream/60">
                {toast.customer_name || toast.customer_email || t('ضيف', 'Guest')}
                {' — '}<bdi dir="ltr">{Number(toast.total).toFixed(2)} QAR</bdi>
@@ -176,7 +176,7 @@ export default function AdminNotificationBell() {
                   <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!n.is_read ? 'bg-red-500' : 'bg-transparent'}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-charcoal">{n.order_number}</p>
+                      <p className="text-xs font-medium text-charcoal">#{n.order_number}</p>
                       <p className="text-[10px] text-charcoal/30 flex-shrink-0">{timeAgo(n.created_at)}</p>
                     </div>
                     <p className="text-xs text-charcoal/60 truncate">

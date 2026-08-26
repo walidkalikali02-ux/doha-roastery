@@ -4,6 +4,7 @@ import { Package, ShoppingCart, DollarSign, TrendingUp, Receipt, CalendarDays, C
 import Link from 'next/link'
 import { useLang, STATUS_LABELS } from '@/contexts/LanguageContext'
 import { DailyOrderMetric, fetchAdminOrdersOverview, StatusMetric } from '@/lib/admin-orders'
+import { formatOrderNumber } from '@/lib/display-text'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
 
@@ -27,6 +28,7 @@ interface Props {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
+  paid: 'bg-emerald-100 text-emerald-800',
   confirmed: 'bg-blue-100 text-blue-800',
   processing: 'bg-indigo-100 text-indigo-800',
   shipped: 'bg-purple-100 text-purple-800',
@@ -163,7 +165,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                 <card.icon size={18} strokeWidth={1.3} className="text-sand group-hover:text-gold transition-colors" />
               </div>
               <p className="text-3xl font-light text-charcoal">
-                {card.value}
+                 <bdi dir="ltr">{card.value}</bdi>
                 {card.unit && (
                   <span className="text-base text-sand ms-1">{card.unit}</span>
                 )}
@@ -197,7 +199,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                   <card.icon size={16} strokeWidth={1.4} className="text-sand" />
                 </div>
                 <p className="text-2xl font-light text-charcoal">
-                  {card.value}
+                   <bdi dir="ltr">{card.value}</bdi>
                   {card.suffix && <span className="ms-1 text-sm text-sand">{card.suffix}</span>}
                 </p>
               </div>
@@ -212,7 +214,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                 return (
                   <div key={day.date} className="flex h-full flex-col justify-end gap-3">
                     <div className="text-center">
-                      <p className="text-[10px] tracking-[0.2em] uppercase text-charcoal/35">{day.orders}</p>
+                       <p className="text-[10px] tracking-[0.2em] uppercase text-charcoal/35"><bdi dir="ltr">{day.orders}</bdi></p>
                     </div>
                     <div className="relative flex-1 rounded-t-full bg-cream-dark/70">
                       <div
@@ -223,7 +225,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                     <div className="text-center">
                       <p className="text-[11px] font-medium text-charcoal">{day.label}</p>
                       <p className="mt-1 text-[10px] text-charcoal/45">
-                        {day.revenue.toFixed(0)} {t('ر.ق', 'QAR')}
+                         <bdi dir="ltr">{day.revenue.toFixed(0)}</bdi> {t('ر.ق', 'QAR')}
                       </p>
                     </div>
                   </div>
@@ -255,7 +257,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                     <p className="text-xs tracking-[0.2em] uppercase text-charcoal/55">
                       {t(STATUS_LABELS[item.status]?.ar ?? item.status, STATUS_LABELS[item.status]?.en ?? item.status)}
                     </p>
-                    <p className="text-sm font-medium text-charcoal">{item.count}</p>
+                     <p className="text-sm font-medium text-charcoal"><bdi dir="ltr">{item.count}</bdi></p>
                   </div>
                   <div className="h-2 overflow-hidden bg-cream-dark/80">
                     <div
@@ -293,7 +295,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
               <div key={order.id} className="px-6 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-charcoal">
-                    {order.order_number ?? order.id.slice(0, 8)}
+                    {formatOrderNumber(order)}
                   </p>
                   <p className="text-xs text-charcoal/40 mt-0.5">
                     {new Date(order.created_at).toLocaleDateString(
@@ -304,7 +306,7 @@ export default function AdminDashboardClient({ stats, recentOrders, analytics }:
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-charcoal">
-                    {(order.total ?? 0).toFixed(2)} {t('ر.ق', 'QAR')}
+                     <bdi dir="ltr">{(order.total ?? 0).toFixed(2)}</bdi> {t('ر.ق', 'QAR')}
                   </span>
                   <span className={`text-[10px] tracking-widest uppercase px-2 py-1 ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
                     {t(STATUS_LABELS[order.status]?.ar ?? order.status, STATUS_LABELS[order.status]?.en ?? order.status)}
