@@ -66,15 +66,10 @@ begin
 
   insert into public.orders (
     user_id, order_number, guest_email, status, subtotal, shipping_cost,
-    discount_amount, total, shipping_address,
-    shipping_address_line1, shipping_address_line2,
-    shipping_address_city, shipping_address_state,
-    shipping_address_country
+    discount_amount, total, shipping_address
   ) values (
     auth.uid(), v_order_number, p_guest_email, 'pending', 0, 0, 0, 0,
-    p_shipping_address,
-    p_shipping_address->>'address', p_shipping_address->>'notes',
-    p_shipping_address->>'city', p_shipping_address->>'area', 'Qatar'
+    p_shipping_address
   ) returning id into v_order_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
