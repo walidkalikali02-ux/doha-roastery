@@ -4,6 +4,7 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ToolsClient from './ToolsClient'
+import { dedupeProducts } from '@/lib/products'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ export default async function ToolsPage() {
   return (
     <>
       <Header />
-      <ToolsClient products={(products as Product[]) ?? []} />
+      <ToolsClient products={dedupeProducts((products as Product[]) ?? [])} />
       <Footer />
     </>
   )

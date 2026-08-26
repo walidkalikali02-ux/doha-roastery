@@ -18,6 +18,7 @@ const LanguageContext = createContext<LanguageContextType>({
 
 export const STATUS_LABELS: Record<string, { ar: string; en: string }> = {
   pending:        { ar: 'معلق',        en: 'Pending' },
+  paid:           { ar: 'مدفوع',       en: 'Paid' },
   confirmed:      { ar: 'مؤكد',        en: 'Confirmed' },
   processing:     { ar: 'قيد التجهيز', en: 'Processing' },
   shipped:        { ar: 'تم الشحن',    en: 'Shipped' },

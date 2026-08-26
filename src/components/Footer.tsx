@@ -37,6 +37,7 @@ export default function Footer() {
           {[
             { href: '/', ar: 'الرئيسية', en: 'Home' },
             { href: '/products', ar: 'المنتجات', en: 'Products' },
+            { href: '/honey', ar: 'العسل', en: 'Honey' },
             { href: '/wholesale', ar: 'الجملة', en: 'Wholesale' },
             { href: '/about', ar: 'من نحن', en: 'About' },
             { href: '/contact', ar: 'تواصل معنا', en: 'Contact' },
@@ -58,9 +59,9 @@ export default function Footer() {
             {t('تواصل معنا', 'Contact')}
           </h4>
           <p className="text-sm">{t('الدوحة، قطر', 'Doha, Qatar')}</p>
-          <p className="text-sm">info@doharoastery.com</p>
+           <p className="text-sm"><bdi dir="ltr">info@doharoastery.com</bdi></p>
           <a href="https://wa.me/97433337592" target="_blank" rel="noopener noreferrer"
-            className="text-sm hover:text-sand transition-colors">+974 3333 7592</a>
+             className="text-sm hover:text-sand transition-colors"><bdi dir="ltr">+974 3333 7592</bdi></a>
         </div>
       </div>
 

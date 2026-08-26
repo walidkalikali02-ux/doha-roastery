@@ -4,21 +4,23 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import HomeClient from './HomeClient'
+import { safeJsonLd } from '@/lib/json-ld'
+import { dedupeProducts } from '@/lib/products'
 
 export const dynamic = 'force-dynamic'
 
 const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
-  title: 'Doha Roastery | Specialty Coffee Qatar — قهوة مختصة في الدوحة',
+  title: 'قهوة مختصة في قطر | دوحة روستري',
   description:
-    'اشترِ القهوة المختصة في قطر من دوحة روستري. حبوب قهوة أحادية المصدر، كبسولات نسبريسو، أكياس دريب، وشاي ماتشا. محمصة يومياً في الدوحة. توصيل مجاني فوق ٢٠٠ ريال. Buy specialty coffee in Qatar — freshly roasted daily in Doha.',
+    'اشترِ القهوة المختصة في قطر من دوحة روستري: حبوب قهوة، خلطات، قهوة منزوعة الكافيين وأدوات تحضير. الشحن يبدأ من ١٠ ر.ق.',
   keywords:
     'specialty coffee Qatar, buy coffee Doha, قهوة مختصة قطر, دوحة روستري, Doha Roastery, coffee beans Qatar, Nespresso capsules Qatar, drip coffee Qatar, قهوة مختصة الدوحة, محمصة قهوة قطر, حبوب قهوة قطر',
   alternates: { canonical: SITE_URL },
   openGraph: {
-    title: 'Doha Roastery | Specialty Coffee Qatar — قهوة مختصة في الدوحة',
-    description: 'Specialty coffee roasted fresh daily in Doha, Qatar. Shop single-origin beans, Nespresso capsules, drip pouches and matcha. Free delivery over 200 QAR.',
+    title: 'قهوة مختصة في قطر | دوحة روستري',
+    description: 'تسوّق حبوب القهوة والخلطات والقهوة منزوعة الكافيين وأدوات التحضير من دوحة روستري في قطر.',
     url: SITE_URL,
     siteName: 'Doha Roastery',
     locale: 'ar_QA',
@@ -34,7 +36,7 @@ export default async function HomePage() {
     .eq('status', 'active')
     .eq('in_stock', true)
     .order('created_at', { ascending: false })
-    .limit(40)
+    .limit(100)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -58,9 +60,9 @@ export default async function HomePage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <Header />
-      <HomeClient featured={(featured as Product[]) ?? []} />
+      <HomeClient featured={dedupeProducts((featured as Product[]) ?? [])} />
       <Footer />
     </>
   )

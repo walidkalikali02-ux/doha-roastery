@@ -22,7 +22,7 @@ export default function AboutClient() {
       icon: MapPin,
       title: t('من الدوحة للعالم', 'From Doha to the World'),
       desc: t(
-        'محمصتنا في قلب الدوحة تُنتج قهوة تُشحن لعملاء في قطر ودول الخليج.',
+        'محمصتنا في قلب الدوحة تنتج قهوة نرسلها إلى عملاء في قطر ودول الخليج.',
         'Our roastery in the heart of Doha produces coffee shipped to customers across Qatar and the Gulf.'
       ),
     },
@@ -38,18 +38,18 @@ export default function AboutClient() {
       icon: Award,
       title: t('شراكات موثوقة', 'Trusted Partnerships'),
       desc: t(
-        'نزوّد أكثر من 5 فروع ومقاهي وفنادق بالقهوة المختصة في قطر.',
+        'نزوّد أكثر من ٥ فروع ومقاهٍ وفنادق بالقهوة المختصة في قطر.',
         'We supply specialty coffee to 5+ branches, cafés, and hotels across Qatar.'
       ),
     },
   ]
 
   const milestones = [
-    { year: '2018', ar: 'تأسيس دوحة روستري في الدوحة', en: 'Doha Roastery founded in Doha' },
+    { year: '2017', ar: 'تأسيس دوحة روستري في الدوحة', en: 'Doha Roastery founded in Doha' },
     { year: '2019', ar: 'افتتاح أول فرع للمقهى', en: 'First café branch opened' },
-    { year: '2021', ar: 'توسع في سوق الجملة لقطر', en: 'Expanded into wholesale market across Qatar' },
+    { year: '2021', ar: 'التوسع في سوق الجملة في قطر', en: 'Expanded into wholesale market across Qatar' },
     { year: '2022', ar: 'إطلاق المتجر الإلكتروني', en: 'Online store launched' },
-    { year: '2024', ar: 'أكثر من 5 فروع تعمل يومياً', en: '5+ branches operating daily' },
+    { year: '2024', ar: 'أكثر من ٥ فروع تعمل يوميًا', en: '5+ branches operating daily' },
   ]
 
   return (
@@ -109,7 +109,7 @@ export default function AboutClient() {
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
             {[
-              { num: t('٢٠١٨', '2018'), label: t('سنة التأسيس', 'Founded') },
+              { num: t('٢٠١٧', '2017'), label: t('سنة التأسيس', 'Founded') },
               { num: t('٥+', '5+'),    label: t('فروع تعمل يومياً', 'Daily Branches') },
               { num: t('يومي', 'Daily'), label: t('تحميص طازج', 'Fresh Roasting') },
               { num: t('آلاف', '1000s'), label: t('عميل موثوق', 'Happy Customers') },
@@ -154,7 +154,7 @@ export default function AboutClient() {
                 <div key={i} className="flex items-start gap-8">
                   <div className="relative flex-shrink-0">
                     <div className="w-16 h-16 bg-charcoal flex items-center justify-center text-sand text-xs font-medium tracking-widest z-10 relative">
-                      {m.year}
+                      <bdi dir="ltr">{m.year}</bdi>
                     </div>
                   </div>
                   <div className="flex-1 pt-4 pb-4 border-b border-sand/15">

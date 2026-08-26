@@ -7,7 +7,7 @@ import { useCart } from '@/contexts/CartContext'
 import { Product } from '@/lib/types'
 import ProductCard from '@/components/ProductCard'
 import GeometricPattern from '@/components/GeometricPattern'
-import { ORIGIN_AR, QTY_AR, localizeCategory, localizeWeight } from '@/lib/display-text'
+import { buildProductDescription, normalizeArabicDescription, QTY_AR, formatProductTitle, localizeCategory, localizeOrigin, localizeWeight } from '@/lib/display-text'
 
 export interface WeightVariant {
   id: string
@@ -66,6 +66,33 @@ export default function ProductDetailClient({ product, weightVariants, related }
     : isWeightProduct
       ? (weightVariants.find((v) => v.id === selectedVariantId) ?? weightVariants[0])
       : null
+  const productTitle = formatProductTitle({
+    name: product.name,
+    nameAr: product.name_ar,
+    weight: selectedVariant?.weight ?? product.weight,
+    lang,
+  })
+  const displayDescription =
+    lang === 'ar'
+      ? buildProductDescription({
+          name: product.name,
+          nameAr: product.name_ar,
+          category: product.category,
+          weight: selectedVariant?.weight ?? product.weight,
+          lang: 'ar',
+          sourceDescription: product.description,
+          baseDescription: product.description_ar
+            ? normalizeArabicDescription(product.description_ar, product.weight)
+            : null,
+        })
+      : buildProductDescription({
+          name: product.name,
+          nameAr: product.name_ar,
+          category: product.category,
+          weight: selectedVariant?.weight ?? product.weight,
+          sourceDescription: product.description,
+          lang: 'en',
+        })
 
   const displayPrice    = selectedVariant ? selectedVariant.price    : product.price
   const displayInStock  = selectedVariant
@@ -92,6 +119,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
       addItem({
         id:        itemId,
         name:      product.name,
+        nameAr:    product.name_ar,
         weight:    itemWeight,
         grind:     isCoffeeBeans ? grind : '',
         notes,
@@ -112,10 +140,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
         <Link href="/products" className="hover:text-sand transition-colors">{t('المنتجات', 'Products')}</Link>
         <ChevronRight size={12} className={dir === 'rtl' ? 'rotate-180' : ''} />
         <span className="text-charcoal truncate max-w-[200px]">
-          {isCompound && compoundOrigin
-            ? (lang === 'ar' ? (ORIGIN_AR[compoundOrigin] ?? compoundOrigin) : compoundOrigin)
-            : (lang === 'ar' && product.name_ar ? product.name_ar : product.name)
-          }
+          {productTitle}
         </span>
       </div>
 
@@ -127,7 +152,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
           {product.image_url ? (
             <img
               src={product.image_url}
-              alt={lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+              alt={productTitle}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -139,7 +164,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
           <div className="absolute top-4 start-4 flex flex-col gap-2">
             {hasDiscount && (
               <span className="bg-terracotta text-cream text-[10px] tracking-widest uppercase px-3 py-1">
-                -{discountPct}% {t('خصم', 'OFF')}
+                <bdi dir="ltr">-{discountPct}%</bdi> {t('خصم', 'OFF')}
               </span>
             )}
             {isOutOfStock && (
@@ -156,21 +181,14 @@ export default function ProductDetailClient({ product, weightVariants, related }
             <p className="text-xs tracking-[0.4em] uppercase text-sand mb-3">{localizeCategory(product.category, lang)}</p>
           )}
 
-          {isCompound && compoundOrigin && (
-            <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-1">
-              {lang === 'ar' ? (ORIGIN_AR[compoundOrigin] ?? compoundOrigin) : compoundOrigin}
-            </h1>
-          )}
           {isCompound && (
             <p className="text-sm text-charcoal/50 mb-2">
-              {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
+              {t('المنشأ', 'Origin')}: {localizeOrigin(compoundOrigin, lang)}
             </p>
           )}
-          {!isCompound && (
-            <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-2">
-              {lang === 'ar' && product.name_ar ? product.name_ar : product.name}
-            </h1>
-          )}
+          <h1 className="text-3xl md:text-4xl font-light text-charcoal leading-tight mb-2">
+            {productTitle}
+          </h1>
 
           {product.tags && product.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
@@ -182,10 +200,8 @@ export default function ProductDetailClient({ product, weightVariants, related }
             </div>
           )}
 
-          {(lang === 'ar' ? (product.description_ar || product.description) : product.description) && (
-            <p className="text-charcoal/60 leading-relaxed mb-5 text-sm">
-              {lang === 'ar' ? (product.description_ar || product.description) : product.description}
-            </p>
+          {displayDescription && (
+            <ProductDescription text={displayDescription} />
           )}
 
           <div className="h-px bg-sand/20 mb-5" />
@@ -216,7 +232,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                       }`}
                     >
                       <span className="font-medium">{lang === 'ar' ? (QTY_AR[qty] ?? qty) : qty}</span>
-                      <span className="opacity-60">{v.price.toFixed(0)} {t('ر.ق', 'QAR')}</span>
+                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(0)}</bdi> {t('ر.ق', 'QAR')}</span>
                     </button>
                   )
                 })}
@@ -245,7 +261,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                       }`}
                     >
                       <span className="font-medium">{localizeWeight(v.weight, lang)}</span>
-                      <span className="opacity-60">{v.price.toFixed(0)} {t('ر.ق', 'QAR')}</span>
+                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(0)}</bdi> {t('ر.ق', 'QAR')}</span>
                     </button>
                   )
                 })}
@@ -256,12 +272,12 @@ export default function ProductDetailClient({ product, weightVariants, related }
           {/* Price */}
           <div className="flex items-baseline gap-3 mb-5">
             <span className="text-3xl font-light text-charcoal">
-              {displayPrice.toFixed(2)}
+              <bdi dir="ltr">{displayPrice.toFixed(2)}</bdi>
               <span className="text-base text-sand ms-1">{t('ر.ق', 'QAR')}</span>
             </span>
             {hasDiscount && (
               <span className="text-lg line-through text-sand/60">
-                {product.compare_at_price!.toFixed(2)}
+                <bdi dir="ltr">{product.compare_at_price!.toFixed(2)}</bdi>
               </span>
             )}
           </div>
@@ -313,7 +329,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
           {/* Stock warning */}
           {!isOutOfStock && displayQuantity <= product.low_stock_threshold && (
             <p className="text-xs text-gold tracking-wide mb-4">
-              ⚠ {t(`تبقّى ${displayQuantity} فقط`, `Only ${displayQuantity} left in stock`)}
+              ⚠ {t('تبقّى ', 'Only ')}<bdi dir="ltr">{displayQuantity}</bdi>{t(' فقط', ' left in stock')}
             </p>
           )}
 
@@ -324,7 +340,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                 <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors">
                   <Minus size={14} strokeWidth={1.5} />
                 </button>
-                <span className="px-4 py-2.5 text-sm text-charcoal min-w-[40px] text-center border-x border-sand/40">{qty}</span>
+                <span className="px-4 py-2.5 text-sm text-charcoal min-w-[40px] text-center border-x border-sand/40"><bdi dir="ltr">{qty}</bdi></span>
                 <button onClick={() => setQty(Math.min(displayQuantity, qty + 1))} className="px-3 py-2.5 text-charcoal hover:text-sand transition-colors">
                   <Plus size={14} strokeWidth={1.5} />
                 </button>
@@ -387,5 +403,60 @@ export default function ProductDetailClient({ product, weightVariants, related }
         </section>
       )}
     </main>
+  )
+}
+
+function ProductDescription({ text }: { text: string }) {
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+
+  return (
+    <div className="text-charcoal/60 leading-relaxed mb-5 text-sm space-y-5">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split('\n').map((line) => line.trim()).filter(Boolean)
+        const heading = lines.length > 1 && /[:：]$/.test(lines[0]) ? lines[0] : null
+        const contentLines = heading ? lines.slice(1) : lines
+        const facts = contentLines.length > 1 && contentLines.every((line) => /^[^:：]{2,32}[:：]\s*.+$/.test(line))
+        const bullets = contentLines.some((line) => /^[-*•]\s+/.test(line))
+
+        if (facts) {
+          return (
+            <section key={blockIndex} className="border-s-2 border-sand/40 ps-4">
+              {heading && <h3 className="text-xs font-medium tracking-wide text-charcoal mb-3">{heading}</h3>}
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                {contentLines.map((line) => {
+                  const [label, ...valueParts] = line.split(/[:：]/)
+                  return (
+                    <div key={line} className="flex gap-2 text-xs">
+                      <dt className="text-charcoal/45">{label.trim()}:</dt>
+                      <dd className="text-charcoal/70">{valueParts.join(':').trim()}</dd>
+                    </div>
+                  )
+                })}
+              </dl>
+            </section>
+          )
+        }
+
+        if (bullets) {
+          return (
+            <section key={blockIndex}>
+              {heading && <h3 className="text-xs font-medium tracking-wide text-charcoal mb-2">{heading}</h3>}
+              <ul className="space-y-1.5 list-disc ps-5">
+                {contentLines.map((line) => <li key={line}>{line.replace(/^[-*•]\s+/, '')}</li>)}
+              </ul>
+            </section>
+          )
+        }
+
+        return (
+          <p key={blockIndex} className="whitespace-pre-line">
+            {block}
+          </p>
+        )
+      })}
+    </div>
   )
 }

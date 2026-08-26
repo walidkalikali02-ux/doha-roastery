@@ -4,21 +4,38 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import FloatingWhatsAppButton from "@/components/FloatingWhatsAppButton";
-import { Cairo, Inter } from "next/font/google";
+import localFont from "next/font/local";
 
-const cairo = Cairo({ subsets: ["arabic", "latin"], weight: ["300","400","500","600","700"], variable: "--font-cairo" })
-const inter = Inter({ subsets: ["latin"], weight: ["300","400","500","600"], variable: "--font-inter" })
+const cairo = localFont({
+  src: [
+    { path: "../../public/fonts/cairo-300.woff2", weight: "300", style: "normal" },
+    { path: "../../public/fonts/cairo-400.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/cairo-500.woff2", weight: "500", style: "normal" },
+    { path: "../../public/fonts/cairo-600.woff2", weight: "600", style: "normal" },
+    { path: "../../public/fonts/cairo-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-cairo",
+})
+const inter = localFont({
+  src: [
+    { path: "../../public/fonts/inter-300.woff2", weight: "300", style: "normal" },
+    { path: "../../public/fonts/inter-400.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/inter-500.woff2", weight: "500", style: "normal" },
+    { path: "../../public/fonts/inter-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--font-inter",
+})
 
 const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Doha Roastery | Specialty Coffee Qatar — قهوة مختصة في الدوحة',
-    template: '%s | Doha Roastery Qatar',
+    default: 'قهوة مختصة في قطر | دوحة روستري',
+    template: '%s | دوحة روستري',
   },
   description:
-    'Buy specialty coffee beans, capsules, drip pouches and tea online in Qatar. Freshly roasted daily in Doha. Free delivery over 200 QAR. قهوة مختصة تُحمّص يوميًا في الدوحة.',
+    'تسوّق قهوة مختصة وحبوب قهوة وكبسولات وأدوات تحضير في قطر من دوحة روستري. تحميص بعناية وتوصيل داخل الدوحة وجميع أنحاء قطر.',
   keywords:
     'specialty coffee Qatar, buy coffee Doha, قهوة مختصة قطر, Doha Roastery, coffee beans Qatar, Nespresso capsules Qatar, drip coffee Qatar, قهوة مختصة, محمصة قهوة الدوحة',
   authors: [{ name: 'Doha Roastery', url: SITE_URL }],
@@ -37,6 +54,11 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@doharoastery',
     creator: '@doharoastery',
+  },
+  icons: {
+    icon: [{ url: '/logo.png', type: 'image/png' }],
+    shortcut: ['/logo.png'],
+    apple: [{ url: '/logo.png', type: 'image/png' }],
   },
   robots: {
     index: true,

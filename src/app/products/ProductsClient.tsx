@@ -80,7 +80,10 @@ export default function ProductsClient({ products, categories }: Props) {
     let list = [...products]
     if (search) {
       const q = search.toLowerCase()
-      list = list.filter((p) => p.name.toLowerCase().includes(q))
+      list = list.filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.name_ar ?? '').toLowerCase().includes(q)
+      )
     }
     if (selectedCat) list = list.filter((p) => p.category === selectedCat)
     if (sort === 'price_asc') list.sort((a, b) => a.price - b.price)

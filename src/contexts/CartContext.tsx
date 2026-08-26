@@ -5,6 +5,7 @@ export interface CartItem {
   cartKey: string      // unique key: `${id}-${grind}`
   id: string           // actual Supabase product ID
   name: string         // base product name (no weight suffix)
+  nameAr?: string | null
   weight: string       // e.g. "250g", "" for non-weight products
   grind: string        // "whole-bean" | "espresso" | "filter" | "moka" | "french-press" | ""
   notes: string
@@ -16,6 +17,7 @@ export interface CartItem {
 interface AddItemInput {
   id: string
   name: string
+  nameAr?: string | null
   weight: string
   grind: string
   notes: string

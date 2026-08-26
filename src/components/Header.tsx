@@ -32,6 +32,7 @@ export default function Header() {
   const links = [
     { href: '/', label: t('الرئيسية', 'Home') },
     { href: '/products', label: t('المنتجات', 'Products') },
+    { href: '/honey', label: t('العسل', 'Honey') },
     { href: '/tools', label: t('الأدوات', 'Tools') },
     { href: '/wholesale', label: t('الجملة', 'Wholesale') },
     { href: '/about', label: t('من نحن', 'About') },
@@ -85,7 +86,7 @@ export default function Header() {
             <ShoppingBag size={18} strokeWidth={1.5} />
             {count > 0 && (
               <span className="absolute -top-2 -end-2 w-4 h-4 bg-sand text-charcoal text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
-                {count > 9 ? '9+' : count}
+                <bdi dir="ltr">{count > 9 ? '9+' : count}</bdi>
               </span>
             )}
           </Link>

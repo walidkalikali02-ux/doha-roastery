@@ -275,10 +275,10 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                   </td>
 
                   <td className="px-4 py-3 text-charcoal/60">{p.category ?? '—'}</td>
-                  <td className="px-4 py-3 text-charcoal">{p.price.toFixed(2)} {t('ر.ق', 'QAR')}</td>
+                   <td className="px-4 py-3 text-charcoal"><bdi dir="ltr">{p.price.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs ${p.quantity <= p.low_stock_threshold ? 'text-red-500' : 'text-charcoal'}`}>
-                      {p.quantity}
+                       <bdi dir="ltr">{p.quantity}</bdi>
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -335,7 +335,15 @@ export default function AdminProductsClient({ initialProducts }: Props) {
               </div>
               <div>
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('الفئة', 'Category')}</label>
-                <input value={form.category ?? ''} onChange={F('category')} className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
+                <input list="product-categories" value={form.category ?? ''} onChange={F('category')} className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
+                <datalist id="product-categories">
+                  <option value="Coffee Beans" />
+                  <option value="Coffee Capsules" />
+                  <option value="Drip Pouches" />
+                  <option value="Tea" />
+                  <option value="Honey" />
+                  <option value="Tools" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('السعر (ر.ق)', 'Price (QAR)')}</label>
@@ -373,11 +381,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">Description (English)</label>
-                <textarea rows={3} value={form.description ?? ''} onChange={F('description')} placeholder="Describe the product in English..." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
+                <textarea rows={3} value={form.description ?? ''} onChange={F('description')} placeholder="Write a precise product description that matches the exact product title, origin, type, and use." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">الوصف (عربي)</label>
-                <textarea dir="rtl" rows={3} value={form.description_ar ?? ''} onChange={F('description_ar')} placeholder="اكتب وصف المنتج بالعربي..." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
+                <textarea dir="rtl" rows={3} value={form.description_ar ?? ''} onChange={F('description_ar')} placeholder="اكتب وصفًا دقيقًا يطابق اسم المنتج نفسه، مثل النوع أو المنشأ أو الوزن أو طريقة الاستخدام." className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal resize-none" />
               </div>
               {error && <div className="col-span-2 text-red-500 text-xs">{error}</div>}
             </div>

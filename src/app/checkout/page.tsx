@@ -1,16 +1,19 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, Lock } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { localizeWeight } from '@/lib/display-text'
+import { DELIVERY_WINDOW_AR, DELIVERY_WINDOW_EN, localizeWeight } from '@/lib/display-text'
+import { getShippingCost, SHIPPING_RATES, ShippingZone, shippingZoneLabel } from '@/lib/shipping'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 type Step = 'info' | 'shipping' | 'review'
+type PaymentMethod = 'cod' | 'card'
 
 interface FormData {
   email: string
@@ -28,17 +31,24 @@ const EMPTY: FormData = {
   address: '', city: '', area: '', notes: '',
 }
 
-export default function CheckoutPage() {
+function CheckoutInner() {
   const { t, dir, lang } = useLang()
   const { items, total, clear } = useCart()
+  const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const retryOrderId = searchParams.get('retry')
 
   const [step, setStep] = useState<Step>('info')
   const [form, setForm] = useState<FormData>(EMPTY)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [shippingZone, setShippingZone] = useState<ShippingZone | ''>('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
+  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState<string | null>(null)
+  const contactEmail = user?.email ?? form.email
 
-  const shipping = total >= 200 ? 0 : 15
+  const shipping = getShippingCost(shippingZone) ?? 0
   const grandTotal = total + shipping
 
   function f(key: keyof FormData) {
@@ -46,72 +56,147 @@ export default function CheckoutPage() {
       setForm({ ...form, [key]: e.target.value })
   }
 
+  async function startPayment(orderId: string) {
+    const paymentResponse = await fetch('/api/payments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, language: lang }),
+    })
+    const payment = await paymentResponse.json().catch(() => null) as { paymentUrl?: string; error?: string } | null
+    if (!paymentResponse.ok || !payment?.paymentUrl) {
+      throw new Error(payment?.error ?? t('تعذر بدء عملية الدفع', 'Could not start payment'))
+    }
+
+    clear()
+    window.location.assign(payment.paymentUrl)
+  }
+
   async function placeOrder() {
+    if (!shippingZone) {
+      setError(t('يرجى اختيار منطقة التوصيل', 'Please choose a delivery area'))
+      setStep('shipping')
+      return
+    }
     setSubmitting(true)
     setError(null)
+    const orderEmail = user?.email ?? form.email
     try {
-      const orderNum = `DR-${Date.now()}`
-      const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNum,
-          guest_email: form.email,
-          status: 'pending',
-          subtotal: total,
-          shipping_cost: shipping,
-          discount_amount: 0,
-          total: grandTotal,
-          shipping_address: {
-            first_name: form.firstName,
-            last_name: form.lastName,
-            phone: form.phone,
-            address: form.address,
-            city: form.city,
-            area: form.area,
-          },
-        })
-        .select()
-        .single()
-
-      if (orderErr || !order) throw orderErr ?? new Error(t('تعذر إنشاء الطلب', 'Order creation failed'))
-
-      const orderItems = items.map((item) => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      }))
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-      if (itemsErr) throw itemsErr
-
-      // Fire order notification (admin email + customer email + realtime dashboard)
-      supabase.functions.invoke('order-notification', {
-        body: {
-          order_id: order.id,
-          order_number: orderNum,
-          guest_email: form.email,
-          customer_name: `${form.firstName} ${form.lastName}`,
-          total: grandTotal,
-          items: items.map(i => ({ name: `${i.name}${i.weight ? ` – ${i.weight}` : ''}${i.grind ? ` (${i.grind})` : ''}`, quantity: i.quantity, price: i.price })),
-          shipping_address: {
-            first_name: form.firstName,
-            last_name: form.lastName,
-            phone: form.phone,
-            address: form.address,
-            city: form.city,
-            area: form.area,
-          },
+      // Server-side RPC recomputes subtotal/shipping/total from ecommerce_products
+      // and generates the order_number. Client-supplied prices are ignored.
+      const { data, error: rpcErr } = await supabase.rpc('place_order', {
+        p_guest_email: orderEmail,
+        p_shipping_address: {
+          first_name: form.firstName,
+          last_name: form.lastName,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          area: form.area,
+          notes: form.notes,
+          shipping_zone: shippingZone,
+          payment_method: paymentMethod,
         },
-      }).catch(() => {}) // non-blocking — don't fail the order if notification fails
+        p_items: items.map((item) => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          weight: item.weight ?? null,
+          grind: item.grind ?? null,
+        })),
+      })
+
+      if (rpcErr || !data) throw rpcErr ?? new Error(t('تعذر إنشاء الطلب', 'Order creation failed'))
+
+      const { order_id, order_number } = data as { order_id: string; order_number: string }
+
+      if (paymentMethod === 'card') {
+        setPendingPaymentOrderId(order_id)
+        await startPayment(order_id)
+        return
+      }
+
+      await fetch('/api/order-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order_id,
+          orderNumber: order_number,
+          guestEmail: orderEmail,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          area: form.area,
+          notes: form.notes,
+          shippingZone,
+          shipping,
+          paymentMethod,
+          total: Number((data as { total?: number }).total ?? grandTotal),
+          items: items.map((item) => ({
+            name: item.name,
+            nameAr: item.nameAr,
+            weight: item.weight,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        }),
+      }).catch((emailError) => {
+        console.error('Order created but email notification failed', emailError)
+      })
 
       clear()
-      router.push(`/checkout/success?order=${orderNum}&total=${grandTotal.toFixed(2)}&email=${encodeURIComponent(form.email)}`)
+      router.push(`/checkout/success?order=${encodeURIComponent(order_number)}`)
     } catch (e: unknown) {
       setError((e as Error).message ?? t('حدث خطأ. حاول مجدداً.', 'Something went wrong. Please try again.'))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function retryPayment() {
+    const orderId = retryOrderId ?? pendingPaymentOrderId
+    if (!orderId) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await startPayment(orderId)
+    } catch (e: unknown) {
+      setError((e as Error).message ?? t('حدث خطأ. حاول مجدداً.', 'Something went wrong. Please try again.'))
+      setSubmitting(false)
+    }
+  }
+
+  if (retryOrderId) {
+    return (
+      <>
+        <Header />
+        <main className="pt-24 min-h-screen bg-cream" dir={dir}>
+          <div className="max-w-xl mx-auto px-6 py-20 text-center">
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 px-6 py-4 mb-8 text-sm">
+              {t(
+                'لم تتم عملية الدفع. تم حفظ طلبك ويمكنك إعادة المحاولة بالضغط أدناه.',
+                'Payment was not completed. Your order has been saved and you can retry payment below.'
+              )}
+            </div>
+            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+            <button
+              onClick={retryPayment}
+              disabled={submitting}
+              className="w-full flex items-center justify-center gap-2 bg-charcoal text-cream py-4 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors disabled:opacity-50"
+            >
+              <Lock size={14} strokeWidth={1.5} />
+              {submitting
+                ? t('جارٍ التوجيه للدفع...', 'Redirecting to payment...')
+                : t('إعادة محاولة الدفع', 'Retry Payment')}
+            </button>
+            <Link href="/" className="block mt-4 text-xs tracking-widest uppercase text-charcoal/40 hover:text-charcoal transition-colors">
+              {t('إلغاء والعودة للرئيسية', 'Cancel and go home')}
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </>
+    )
   }
 
   if (items.length === 0) {
@@ -170,7 +255,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="grid gap-4">
-                    <Field label={t('البريد الإلكتروني *', 'Email *')} type="email" value={form.email} onChange={f('email')} required />
+                    <Field label={t('البريد الإلكتروني *', 'Email *')} type="email" value={contactEmail} onChange={f('email')} required disabled={Boolean(user)} />
                     <div className="grid grid-cols-2 gap-4">
                       <Field label={t('الاسم الأول *', 'First Name *')} value={form.firstName} onChange={f('firstName')} required />
                       <Field label={t('اسم العائلة *', 'Last Name *')} value={form.lastName} onChange={f('lastName')} required />
@@ -180,7 +265,7 @@ export default function CheckoutPage() {
 
                   <button
                     onClick={() => {
-                      if (!form.email || !form.firstName || !form.lastName || !form.phone) {
+                      if (!contactEmail || !form.firstName || !form.lastName || !form.phone) {
                         setError(t('يرجى تعبئة الحقول المطلوبة', 'Please fill all required fields'))
                         return
                       }
@@ -208,6 +293,24 @@ export default function CheckoutPage() {
                     <Field label={t('العنوان التفصيلي *', 'Full Address *')} value={form.address} onChange={f('address')} required />
                     <div>
                       <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">
+                        {t('منطقة التوصيل *', 'Delivery Area *')}
+                      </label>
+                      <select
+                        value={shippingZone}
+                        onChange={(e) => setShippingZone(e.target.value as ShippingZone | '')}
+                        required
+                        className="w-full border border-sand/30 px-4 py-3 text-sm bg-white text-charcoal focus:outline-none focus:border-charcoal"
+                      >
+                        <option value="">{t('اختر منطقة التوصيل', 'Choose delivery area')}</option>
+                        {(['doha', 'qatar', 'gcc'] as ShippingZone[]).map((zone) => (
+                          <option key={zone} value={zone}>
+                            {shippingZoneLabel(zone, lang)} — {SHIPPING_RATES[zone]} {t('ر.ق', 'QAR')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">
                         {t('ملاحظات إضافية', 'Order Notes')}
                       </label>
                       <textarea
@@ -225,10 +328,10 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-charcoal">{t('توصيل قياسي', 'Standard Delivery')}</p>
-                        <p className="text-xs text-charcoal/50 mt-0.5">{t('2-4 أيام عمل', '2-4 business days')}</p>
+                        <p className="text-xs text-charcoal/50 mt-0.5">{t(DELIVERY_WINDOW_AR, DELIVERY_WINDOW_EN)}</p>
                       </div>
                       <p className="text-sm font-medium text-charcoal">
-                        {shipping === 0 ? <span className="text-green-700">{t('مجاني', 'Free')}</span> : `${shipping} ${t('ر.ق', 'QAR')}`}
+                         {shippingZone ? <><bdi dir="ltr">{shipping}</bdi> {t('ر.ق', 'QAR')}</> : t('اختر المنطقة', 'Choose area')}
                       </p>
                     </div>
                   </div>
@@ -239,7 +342,7 @@ export default function CheckoutPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (!form.area || !form.city || !form.address) {
+                         if (!form.area || !form.city || !form.address || !shippingZone) {
                           setError(t('يرجى تعبئة الحقول المطلوبة', 'Please fill all required fields'))
                           return
                         }
@@ -264,37 +367,75 @@ export default function CheckoutPage() {
 
                   {/* Contact summary */}
                   <ReviewSection title={t('معلومات التواصل', 'Contact')} onEdit={() => setStep('info')}>
-                    <p>{form.email}</p>
+                    <p>{contactEmail}</p>
                     <p>{form.firstName} {form.lastName}</p>
-                    <p>{form.phone}</p>
+                     <p><bdi dir="ltr">{form.phone}</bdi></p>
                   </ReviewSection>
 
                   {/* Shipping summary */}
                   <ReviewSection title={t('عنوان التوصيل', 'Delivery Address')} onEdit={() => setStep('shipping')}>
                     <p>{form.address}</p>
-                    <p>{form.area}، {form.city}</p>
+                     <p>{form.area}، {form.city}</p>
+                     {shippingZone && <p>{shippingZoneLabel(shippingZone, lang)}</p>}
                     {form.notes && <p className="text-charcoal/50 italic">{form.notes}</p>}
                   </ReviewSection>
 
-                  {/* Items summary */}
-                  <div className="border border-sand/20 bg-white p-5 space-y-3">
+                   {/* Items summary */}
+                   <div className="border border-sand/20 bg-white p-5">
+                     <p className="text-xs tracking-widest uppercase text-charcoal/50 mb-3">
+                       {t('طريقة الدفع', 'Payment Method')}
+                     </p>
+                     <div className="grid sm:grid-cols-2 gap-3">
+                       <label className={`flex items-start gap-3 border p-4 cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-charcoal bg-cream/40' : 'border-sand/20'}`}>
+                         <input
+                           type="radio"
+                           name="payment-method"
+                           value="cod"
+                           checked={paymentMethod === 'cod'}
+                           onChange={() => setPaymentMethod('cod')}
+                           className="mt-1 accent-charcoal"
+                         />
+                         <span>
+                           <span className="block text-sm text-charcoal">{t('الدفع عند الاستلام', 'Cash on Delivery')}</span>
+                           <span className="block text-xs text-charcoal/50 mt-1">{t('ادفع عند وصول طلبك', 'Pay when your order arrives')}</span>
+                         </span>
+                       </label>
+                       <label className={`flex items-start gap-3 border p-4 transition-colors ${paymentMethod === 'card' ? 'border-sand bg-cream/40' : 'border-sand/20 opacity-60'}`}>
+                         <input
+                           type="radio"
+                           name="payment-method"
+                           value="card"
+                           checked={paymentMethod === 'card'}
+                           onChange={() => setPaymentMethod('card')}
+                           className="mt-1 accent-charcoal"
+                         />
+                         <span>
+                           <span className="block text-sm text-charcoal">{t('الدفع بالبطاقة', 'Card Payment')}</span>
+                           <span className="block text-xs text-charcoal/50 mt-1">{t('الدفع الآمن عبر ماي فاتورة', 'Secure payment via MyFatoorah')}</span>
+                         </span>
+                       </label>
+                     </div>
+                   </div>
+
+                   {/* Items summary */}
+                   <div className="border border-sand/20 bg-white p-5 space-y-3">
                     {items.map((item) => (
                       <div key={item.cartKey} className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-cream-dark flex-shrink-0">
                           {item.image_url
-                            ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                             ? <img src={item.image_url} alt={lang === 'ar' && item.nameAr ? item.nameAr : item.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-xl opacity-20">☕</div>
                           }
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-charcoal truncate">{item.name}</p>
+                           <p className="text-sm text-charcoal truncate">{lang === 'ar' && item.nameAr ? item.nameAr : item.name}</p>
                           <p className="text-xs text-charcoal/40">
                             {item.weight && <span>{localizeWeight(item.weight, lang)} · </span>}
-                            × {item.quantity}
+                            <bdi dir="ltr">× {item.quantity}</bdi>
                           </p>
                         </div>
                         <p className="text-sm text-charcoal flex-shrink-0">
-                          {(item.price * item.quantity).toFixed(2)} {t('ر.ق', 'QAR')}
+                          <bdi dir="ltr">{(item.price * item.quantity).toFixed(2)}</bdi> {t('ر.ق', 'QAR')}
                         </p>
                       </div>
                     ))}
@@ -304,13 +445,24 @@ export default function CheckoutPage() {
                     <p className="text-red-500 text-sm">{error}</p>
                   )}
 
+                  {error && pendingPaymentOrderId && (
+                    <button
+                      type="button"
+                      onClick={retryPayment}
+                      disabled={submitting}
+                      className="w-full border border-sand/40 py-3 text-xs tracking-widest text-charcoal uppercase transition-colors hover:border-charcoal disabled:opacity-50"
+                    >
+                      {t('إعادة محاولة الدفع للطلب المحفوظ', 'Retry payment for saved order')}
+                    </button>
+                  )}
+
                   <div className="flex gap-4">
                     <button onClick={() => setStep('shipping')} className="flex-1 border border-sand/40 text-charcoal py-3.5 text-sm tracking-widest uppercase hover:border-charcoal transition-colors">
                       {t('← رجوع', '← Back')}
                     </button>
                     <button
                       onClick={placeOrder}
-                      disabled={submitting}
+                       disabled={submitting}
                       className="flex-1 flex items-center justify-center gap-2 bg-charcoal text-cream py-3.5 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors disabled:opacity-50"
                     >
                       <Lock size={14} strokeWidth={1.5} />
@@ -339,18 +491,18 @@ export default function CheckoutPage() {
                     <div key={item.cartKey} className="flex items-center gap-3">
                       <div className="relative w-10 h-10 bg-cream-dark flex-shrink-0">
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                           ? <img src={item.image_url} alt={lang === 'ar' && item.nameAr ? item.nameAr : item.name} className="w-full h-full object-cover" />
                           : <div className="w-full h-full flex items-center justify-center text-sm opacity-20">☕</div>
                         }
                         <span className="absolute -top-1.5 -end-1.5 w-4 h-4 bg-sand text-charcoal text-[9px] rounded-full flex items-center justify-center font-bold">
-                          {item.quantity}
+                           <bdi dir="ltr">{item.quantity}</bdi>
                         </span>
                       </div>
                       <p className="flex-1 text-xs text-charcoal line-clamp-1">
-                        {item.name}{item.weight ? ` – ${localizeWeight(item.weight, lang)}` : ''}
+                         {lang === 'ar' && item.nameAr ? item.nameAr : item.name}{item.weight ? ` – ${localizeWeight(item.weight, lang)}` : ''}
                       </p>
                       <p className="text-xs text-charcoal flex-shrink-0">
-                        {(item.price * item.quantity).toFixed(2)}
+                         <bdi dir="ltr">{(item.price * item.quantity).toFixed(2)}</bdi>
                       </p>
                     </div>
                   ))}
@@ -359,15 +511,15 @@ export default function CheckoutPage() {
                 <div className="border-t border-sand/15 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-charcoal/60">
                     <span>{t('مجموع المنتجات', 'Subtotal')}</span>
-                    <span>{total.toFixed(2)} {t('ر.ق', 'QAR')}</span>
+                     <span><bdi dir="ltr">{total.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</span>
                   </div>
                   <div className="flex justify-between text-charcoal/60">
                     <span>{t('الشحن', 'Shipping')}</span>
-                    <span>{shipping === 0 ? <span className="text-green-700">{t('مجاني', 'Free')}</span> : `${shipping} ${t('ر.ق', 'QAR')}`}</span>
+                      <span>{shippingZone ? <><bdi dir="ltr">{shipping}</bdi> {t('ر.ق', 'QAR')}</> : t('اختر المنطقة', 'Choose area')}</span>
                   </div>
                   <div className="flex justify-between font-medium text-charcoal pt-2 border-t border-sand/15">
                     <span>{t('الإجمالي', 'Total')}</span>
-                    <span>{grandTotal.toFixed(2)} {t('ر.ق', 'QAR')}</span>
+                     <span><bdi dir="ltr">{grandTotal.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</span>
                   </div>
                 </div>
               </div>
@@ -381,23 +533,28 @@ export default function CheckoutPage() {
 }
 
 function Field({
-  label, value, onChange, type = 'text', required = false
+  label, value, onChange, type = 'text', required = false, disabled = false
 }: {
   label: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   type?: string
   required?: boolean
+  disabled?: boolean
 }) {
   return (
     <div>
       <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{label}</label>
       <input
         type={type}
+        dir={type === 'tel' ? 'ltr' : undefined}
+        inputMode={type === 'tel' ? 'tel' : undefined}
+        autoComplete={type === 'tel' ? 'tel' : undefined}
         required={required}
+        disabled={disabled}
         value={value}
         onChange={onChange}
-        className="w-full border border-sand/30 px-4 py-3 text-sm bg-white text-charcoal focus:outline-none focus:border-charcoal transition-colors"
+        className="w-full border border-sand/30 px-4 py-3 text-sm bg-white text-charcoal focus:outline-none focus:border-charcoal transition-colors disabled:bg-cream/60 disabled:text-charcoal/60"
       />
     </div>
   )
@@ -422,5 +579,13 @@ function ReviewSection({
       </div>
       <div className="text-sm text-charcoal space-y-0.5">{children}</div>
     </div>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-cream" />}>
+      <CheckoutInner />
+    </Suspense>
   )
 }

@@ -7,6 +7,9 @@ export interface Product {
   category: string | null
   description: string | null
   description_ar: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_description_ar?: string | null
   price: number
   compare_at_price: number | null
   cost_per_item: number | null
@@ -26,12 +29,14 @@ export interface Order {
   user_id: string | null
   customer_id: string | null
   guest_email: string | null
-  status: 'pending' | 'confirmed' | 'payment_failed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  status: 'pending' | 'paid' | 'confirmed' | 'payment_failed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   total: number | null
   subtotal: number
   discount_amount: number
   shipping_cost: number
   shipping_address: Record<string, string>
+  mf_payment_url?: string | null
+  mf_invoice_id?: string | null
   created_at: string
   updated_at: string
 }

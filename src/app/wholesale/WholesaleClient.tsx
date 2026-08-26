@@ -109,7 +109,7 @@ export default function WholesaleClient() {
                   {t('تواصل معنا عبر واتساب', 'Contact us on WhatsApp')}
                 </p>
                 <p className="text-white/70 text-xs mt-0.5 tracking-widest">
-                  +974 3333 7592
+                   <bdi dir="ltr">+974 3333 7592</bdi>
                 </p>
               </div>
             </div>
@@ -159,9 +159,12 @@ export default function WholesaleClient() {
                   <label className="block text-xs tracking-widest uppercase text-charcoal/60 mb-2">
                     {field.label}
                   </label>
-                  <input
-                    type={field.type ?? 'text'}
-                    required={field.required}
+                    <input
+                      type={field.type ?? 'text'}
+                      dir={field.type === 'tel' ? 'ltr' : undefined}
+                      inputMode={field.type === 'tel' ? 'tel' : undefined}
+                      autoComplete={field.type === 'tel' ? 'tel' : undefined}
+                      required={field.required}
                     value={(form as Record<string, string>)[field.key]}
                     onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                     className="w-full border border-sand/30 bg-transparent px-4 py-3 text-sm text-charcoal focus:outline-none focus:border-charcoal transition-colors"

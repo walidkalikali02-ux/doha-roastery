@@ -4,7 +4,7 @@ import ContactClient from './ContactClient'
 const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
-  title: 'Contact Doha Roastery | WhatsApp & Email | تواصل معنا',
+  title: 'تواصل مع دوحة روستري | واتساب وبريد إلكتروني',
   description:
     'تواصل مع دوحة روستري — واتساب: ‎+974 3333 7592، البريد: info@doharoastery.com. الدوحة، قطر. مفتوح السبت–الخميس ٨ص–١٠م. Contact us via WhatsApp, email, or our form.',
   keywords:

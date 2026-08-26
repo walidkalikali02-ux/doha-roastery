@@ -49,7 +49,7 @@ export default function ContactClient() {
     {
       icon: MessageCircle,
       label: t('واتساب', 'WhatsApp'),
-      value: '+974 3333 7592',
+       value: '+974 3333 7592',
       href: WHATSAPP,
       green: true,
     },
@@ -68,7 +68,7 @@ export default function ContactClient() {
     {
       icon: Clock,
       label: t('ساعات العمل', 'Working Hours'),
-      value: t('السبت – الخميس: ٨ص – ١٠م', 'Sat – Thu: 8AM – 10PM'),
+      value: t('السبت – الخميس: من ٨ صباحًا إلى ١٠ مساءً', 'Sat – Thu: 8AM – 10PM'),
       href: null,
     },
   ]
@@ -109,7 +109,7 @@ export default function ContactClient() {
         >
           <MessageCircle size={22} strokeWidth={1.5} />
           <span className="text-sm font-medium tracking-wide">
-            {t('تحدّث معنا مباشرةً على واتساب — +974 3333 7592', 'Chat with us directly on WhatsApp — +974 3333 7592')}
+             {t('تحدث معنا مباشرةً على واتساب —', 'Chat with us directly on WhatsApp —')} <bdi dir="ltr">+974 3333 7592</bdi>
           </span>
         </a>
 
@@ -133,11 +133,11 @@ export default function ContactClient() {
                     {item.href ? (
                       <a href={item.href} target={item.href.startsWith('http') ? '_blank' : undefined}
                         rel="noopener noreferrer"
-                        className="text-sm text-charcoal hover:text-sand transition-colors">
-                        {item.value}
+                         className="text-sm text-charcoal hover:text-sand transition-colors">
+                         <bdi dir={item.href === WHATSAPP ? 'ltr' : undefined}>{item.value}</bdi>
                       </a>
                     ) : (
-                      <p className="text-sm text-charcoal">{item.value}</p>
+                       <p className="text-sm text-charcoal">{item.value}</p>
                     )}
                   </div>
                 </div>

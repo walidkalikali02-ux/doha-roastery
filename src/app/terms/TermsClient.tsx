@@ -3,6 +3,7 @@ import { useLang } from '@/contexts/LanguageContext'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import { DELIVERY_WINDOW_AR, DELIVERY_WINDOW_EN } from '@/lib/display-text'
 
 export default function TermsClient() {
   const { t, dir } = useLang()
@@ -20,7 +21,7 @@ export default function TermsClient() {
       id: 'products',
       title: t('٢. المنتجات والأسعار', '2. Products & Pricing'),
       content: t(
-        'جميع الأسعار معروضة بالريال القطري (ر.ق) وتشمل ضريبة القيمة المضافة حيثما ينطبق. نحتفظ بحق تعديل الأسعار أو توقف المنتجات في أي وقت دون إشعار مسبق. تُعدّ الصور والأوصاف على الموقع تقريبية وقد تختلف قليلاً عن المنتج الفعلي.',
+        'جميع الأسعار معروضة بالريال القطري (ر.ق)، وتشمل ضريبة القيمة المضافة عند انطباقها. نحتفظ بحق تعديل الأسعار أو إيقاف المنتجات في أي وقت دون إشعار مسبق. تُعدّ الصور والأوصاف على الموقع تقريبية وقد تختلف قليلًا عن المنتج الفعلي.',
         'All prices are displayed in Qatari Riyals (QAR) and include VAT where applicable. We reserve the right to modify prices or discontinue products at any time without prior notice. Images and descriptions on the site are approximate and may slightly differ from the actual product.'
       ),
     },
@@ -36,15 +37,15 @@ export default function TermsClient() {
       id: 'shipping',
       title: t('٤. الشحن والتوصيل', '4. Shipping & Delivery'),
       content: t(
-        'نوصّل داخل قطر خلال 2-4 أيام عمل. الشحن مجاني للطلبات التي تبلغ 200 ر.ق أو أكثر. لا نتحمل مسؤولية التأخيرات الناجمة عن عوامل خارج نطاق سيطرتنا كالظروف الجوية أو التأخيرات الجمركية. تتم عمليات التوصيل من السبت إلى الخميس خلال ساعات العمل.',
-        'We deliver within Qatar within 2-4 business days. Free shipping on orders of 200 QAR or more. We are not responsible for delays caused by factors beyond our control such as weather conditions or customs delays. Deliveries are made Saturday to Thursday during business hours.'
+        `نوصّل داخل قطر خلال ${DELIVERY_WINDOW_AR}. تبلغ تكلفة الشحن ١٠ ر.ق داخل الدوحة و١٥ ر.ق خارجها داخل قطر، وتبلغ ٥٠ ر.ق لدول مجلس التعاون. لا نتحمل مسؤولية التأخيرات الناجمة عن عوامل خارج نطاق سيطرتنا، كالظروف الجوية أو التأخيرات الجمركية.`,
+        `We deliver within Qatar within ${DELIVERY_WINDOW_EN}. Shipping costs QAR 10 inside Doha, QAR 15 outside Doha within Qatar, and QAR 50 to GCC countries. We are not responsible for delays caused by factors beyond our control such as weather conditions or customs delays.`
       ),
     },
     {
       id: 'returns',
       title: t('٥. سياسة الإرجاع والاستبدال', '5. Returns & Refunds'),
       content: t(
-        'يمكن إرجاع المنتجات غير المفتوحة خلال 7 أيام من تاريخ الاستلام. لا يمكن إرجاع منتجات القهوة المطحونة أو المفتوحة لأسباب صحية وسلامة غذائية. في حالة وجود عيب في المنتج أو خطأ في الطلب من جانبنا، سنتحمل تكاليف الإرجاع ونعيد المبلغ كاملاً أو نستبدل المنتج.',
+        'يمكن إرجاع المنتجات غير المفتوحة خلال ٧ أيام من تاريخ الاستلام. لا يمكن إرجاع منتجات القهوة المطحونة أو المفتوحة لأسباب تتعلق بالصحة والسلامة الغذائية. في حالة وجود عيب في المنتج أو خطأ في الطلب من جانبنا، سنتحمل تكاليف الإرجاع ونعيد المبلغ كاملًا أو نستبدل المنتج.',
         'Unopened products may be returned within 7 days of receipt. Ground or opened coffee products cannot be returned for health and food safety reasons. In the case of a product defect or an error on our part, we will cover return costs and provide a full refund or replacement.'
       ),
     },
@@ -103,7 +104,7 @@ export default function TermsClient() {
               {t('الشروط والأحكام', 'Terms & Conditions')}
             </h1>
             <p className="text-charcoal/50 text-sm">
-              {t('آخر تحديث: مايو ٢٠٢٦', 'Last updated: May 2026')}
+              {t('آخر تحديث: أغسطس ٢٠٢٦', 'Last updated: August 2026')}
             </p>
           </div>
         </section>

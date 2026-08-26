@@ -69,17 +69,17 @@ export default function ProductCard({ product }: Props) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-base font-light text-charcoal">
-              {product.price.toFixed(2)} {t('ر.ق', 'QAR')}
+              <bdi dir="ltr">{product.price.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}
             </span>
             {product.compare_at_price && product.compare_at_price > product.price && (
               <span className="text-xs line-through text-sand">
-                {product.compare_at_price.toFixed(2)}
+                <bdi dir="ltr">{product.compare_at_price.toFixed(2)}</bdi>
               </span>
             )}
           </div>
           <button
             disabled={isOutOfStock}
-            onClick={() => addItem({ id: product.id, name: product.name, weight: '', grind: '', notes: '', price: product.price, image_url: product.image_url })}
+             onClick={() => addItem({ id: product.id, name: product.name, nameAr: product.name_ar, weight: '', grind: '', notes: '', price: product.price, image_url: product.image_url })}
             className="text-[10px] tracking-widest uppercase border border-charcoal text-charcoal px-3 py-1.5
                        hover:bg-charcoal hover:text-cream transition-all duration-200
                        disabled:opacity-30 disabled:cursor-not-allowed"

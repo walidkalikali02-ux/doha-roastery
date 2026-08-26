@@ -1,35 +1,76 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 import GeometricPattern from '@/components/GeometricPattern'
 import { getBrandName } from '@/lib/display-text'
 
 export default function LoginPage() {
-  const { t, dir } = useLang()
-  const { signIn } = useAuth()
-  const router = useRouter()
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-cream" />}>
+      <LoginContent />
+    </Suspense>
+  )
+}
 
+function LoginContent() {
+  const { t, dir } = useLang()
+  const { signIn, signInWithGoogle } = useAuth()
+  const router = useRouter()
+  const params = useSearchParams()
+  const requestedNext = params.get('next')
+  const next = requestedNext?.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/account'
+  const oauthCode = params.get('code')
+  const oauthError = params.get('oauth_error')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  useEffect(() => {
+    if (!oauthCode || oauthError) return
+
+    let active = true
+    supabase.auth.exchangeCodeForSession(oauthCode).then(({ error: exchangeError }) => {
+      if (!active) return
+      if (exchangeError) {
+        setError(t('تعذر إكمال تسجيل الدخول باستخدام Google.', 'Could not complete Google sign in.'))
+        return
+      }
+      router.replace(next)
+    })
+
+    return () => { active = false }
+  }, [oauthCode, oauthError, next, router, t])
+
+  const visibleError = error ?? (oauthError ? t('تعذر تسجيل الدخول باستخدام Google.', 'Could not sign in with Google.') : null)
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
     setLoading(true)
     setError(null)
-    const { error } = await signIn(email, password)
-    if (error) {
-      setError(t('البريد أو كلمة المرور غير صحيحة', 'Invalid email or password'))
-      setLoading(false)
+    const result = await signIn(email.trim(), password)
+    setLoading(false)
+    if (result.error) {
+      setError(t('البريد أو كلمة المرور غير صحيحة.', 'Invalid email or password.'))
       return
     }
-    router.push('/')
+    router.push(next)
+  }
+
+  async function handleGoogleSignIn() {
+    setLoading(true)
+    setError(null)
+    const result = await signInWithGoogle(next)
+    if (result.error) {
+      setLoading(false)
+      setError(t('تعذر بدء تسجيل الدخول باستخدام Google.', 'Could not start Google sign in.'))
+    }
   }
 
   return (
@@ -71,74 +112,47 @@ export default function LoginPage() {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
             <div>
-              <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">
+              <label htmlFor="login-email" className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">
                 {t('البريد الإلكتروني', 'Email')}
               </label>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-sand/30 bg-white px-4 py-3 text-sm text-charcoal focus:outline-none focus:border-charcoal transition-colors"
-              />
+              <input id="login-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full border border-sand/30 bg-white px-4 py-3 text-sm text-charcoal focus:outline-none focus:border-charcoal" />
             </div>
 
-            {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs tracking-widest uppercase text-charcoal/50">
-                  {t('كلمة المرور', 'Password')}
-                </label>
-              </div>
+              <label htmlFor="login-password" className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">
+                {t('كلمة المرور', 'Password')}
+              </label>
               <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-sand/30 bg-white px-4 py-3 pe-12 text-sm text-charcoal focus:outline-none focus:border-charcoal transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute top-1/2 -translate-y-1/2 end-4 text-charcoal/30 hover:text-sand transition-colors"
-                >
-                  {showPass ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+                <input id="login-password" type={showPassword ? 'text' : 'password'} required autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full border border-sand/30 bg-white px-4 py-3 pe-12 text-sm text-charcoal focus:outline-none focus:border-charcoal" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute top-1/2 end-4 -translate-y-1/2 text-charcoal/30 hover:text-sand" aria-label={t('إظهار كلمة المرور', 'Show password')}>
+                  {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
-            {error && (
-              <p className="text-red-500 text-xs tracking-wide bg-red-50 border border-red-100 px-4 py-3">
-                {error}
-              </p>
-            )}
+            {visibleError && <p className="text-red-500 text-xs bg-red-50 border border-red-100 px-4 py-3">{visibleError}</p>}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-charcoal text-cream py-4 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <span className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />
-              ) : (
-                <LogIn size={15} strokeWidth={1.5} />
-              )}
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-charcoal text-cream py-4 text-sm tracking-widest uppercase hover:bg-charcoal-light disabled:opacity-50">
+              {loading ? <span className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" /> : <LogIn size={15} strokeWidth={1.5} />}
               {loading ? t('جاري الدخول...', 'Signing in...') : t('دخول', 'Sign In')}
+            </button>
+
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-sand/20" /></div>
+              <div className="relative flex justify-center"><span className="bg-cream px-3 text-xs text-charcoal/40">{t('أو', 'OR')}</span></div>
+            </div>
+
+            <button type="button" onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 border border-charcoal/20 bg-white text-charcoal py-4 text-sm hover:border-charcoal transition-colors disabled:opacity-50">
+              <span className="font-semibold text-base">G</span>
+              {t('المتابعة باستخدام Google', 'Continue with Google')}
             </button>
           </form>
 
-          {/* Register link */}
           <p className="mt-8 text-center text-sm text-charcoal/50">
             {t('ليس لديك حساب؟', "Don't have an account?")}{' '}
-            <Link href="/auth/register" className="text-sand hover:text-gold transition-colors font-medium">
-              {t('إنشاء حساب', 'Register')}
+            <Link href="/auth/register" className="text-sand hover:text-gold font-medium">
+              {t('إنشاء حساب', 'Create account')}
             </Link>
           </p>
 

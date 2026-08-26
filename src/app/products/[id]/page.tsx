@@ -1,13 +1,19 @@
 import { supabase } from '@/lib/supabase'
 import { Product } from '@/lib/types'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { buildProductDescription, formatProductTitle, localizeOrigin, normalizeArabicDescription } from '@/lib/display-text'
 import ProductDetailClient, { WeightVariant } from './ProductDetailClient'
+import { safeJsonLd } from '@/lib/json-ld'
 
 const SITE_URL = 'https://doha-roastery-eta.vercel.app'
-const BRAND = 'Doha Roastery | Qatar'
+
+function toMetaDescription(value: string) {
+  if (value.length <= 160) return value
+  return `${value.slice(0, 157).replace(/\s+\S*$/, '')}...`
+}
 
 /* ── SEO metadata ── */
 export async function generateMetadata({
@@ -18,47 +24,94 @@ export async function generateMetadata({
   const { id } = await params
   const { data: product } = await supabase
     .from('ecommerce_products')
-    .select('name, description, category, price, image_url, tags')
+    .select('name, name_ar, description, description_ar, category, price, image_url, tags, weight')
     .eq('id', id)
     .single()
 
   if (!product) return { title: 'Product Not Found' }
 
-  const p = product as Pick<Product, 'name' | 'description' | 'category' | 'price' | 'image_url' | 'tags'>
-  const title = `${p.name} | Buy in Qatar | ${BRAND}`
-  const description = p.description
-    ?? `Buy ${p.name} in Qatar. Freshly roasted specialty coffee at Doha Roastery. Free delivery over 200 QAR.`
+  const p = product as Pick<Product, 'name' | 'name_ar' | 'description' | 'description_ar' | 'category' | 'price' | 'image_url' | 'tags' | 'weight'>
+  const nameEn = formatProductTitle({
+    name: p.name,
+    nameAr: p.name_ar,
+    weight: p.weight,
+    lang: 'en',
+  })
+  const nameAr = formatProductTitle({
+    name: p.name,
+    nameAr: p.name_ar,
+    weight: p.weight,
+    lang: 'ar',
+  })
+  const title = `${nameAr} | دوحة روستري`
+  const descriptionAr = buildProductDescription({
+      name: p.name,
+      nameAr: p.name_ar,
+      category: p.category,
+      weight: p.weight,
+      lang: 'ar',
+      sourceDescription: p.description,
+      baseDescription: p.description_ar
+        ? normalizeArabicDescription(p.description_ar, p.weight)
+        : null,
+    })
+  const descriptionEn = buildProductDescription({
+      name: p.name,
+      nameAr: p.name_ar,
+      category: p.category,
+      weight: p.weight,
+      sourceDescription: p.description,
+      lang: 'en',
+    })
+  const isCompound = Boolean(p.weight?.includes('|'))
+  const origin = isCompound ? p.weight!.split('|')[0] : null
 
-  // Find the canonical ID: first active product with this name (consistent across all variants)
-  const { data: canonical } = await supabase
-    .from('ecommerce_products')
-    .select('id')
-    .eq('status', 'active')
-    .eq('name', p.name)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .single()
-  const canonicalId = canonical?.id ?? id
+  let canonicalId = id
+  if (isCompound && origin) {
+    const { data: canonicalCompound } = await supabase
+      .from('ecommerce_products')
+      .select('id, weight')
+      .eq('status', 'active')
+      .eq('name', p.name)
+      .order('created_at', { ascending: true })
+
+    const matchingOrigin = (canonicalCompound as Array<{ id: string; weight: string | null }> | null)?.find(
+      (item) => item.weight?.startsWith(`${origin}|`)
+    )
+    canonicalId = matchingOrigin?.id ?? id
+  } else {
+    const { data: canonical } = await supabase
+      .from('ecommerce_products')
+      .select('id')
+      .eq('status', 'active')
+      .eq('name', p.name)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+    canonicalId = canonical?.id ?? id
+  }
 
   return {
     title,
-    description,
+    description: toMetaDescription(descriptionAr),
     keywords: [
       p.name,
+      p.name_ar ?? '',
       p.category ?? '',
       'specialty coffee Qatar',
       'buy coffee Doha',
       'قهوة مختصة قطر',
       'Doha Roastery',
+      'محمصة قهوة الدوحة',
       ...(p.tags ?? []),
     ].filter(Boolean).join(', '),
     openGraph: {
       title,
-      description,
+      description: toMetaDescription(descriptionAr),
       url: `${SITE_URL}/products/${canonicalId}`,
       siteName: 'Doha Roastery',
       images: p.image_url
-        ? [{ url: p.image_url, width: 1200, height: 630, alt: p.name }]
+        ? [{ url: p.image_url, width: 1200, height: 630, alt: nameEn }]
         : [],
       locale: 'ar_QA',
       type: 'website',
@@ -66,7 +119,7 @@ export async function generateMetadata({
     twitter: {
       card: 'summary_large_image',
       title,
-      description,
+      description: toMetaDescription(descriptionAr),
       images: p.image_url ? [p.image_url] : [],
     },
     alternates: { canonical: `${SITE_URL}/products/${canonicalId}` },
@@ -90,6 +143,37 @@ export default async function ProductPage({
   if (!product) notFound()
 
   const p = product as Product
+  let displayProduct = p
+  if (!p.image_url) {
+    const { data: siblingWithImage } = await supabase
+      .from('ecommerce_products')
+      .select('image_url')
+      .eq('name', p.name)
+      .not('image_url', 'is', null)
+      .neq('image_url', '')
+      .limit(1)
+      .maybeSingle()
+
+    if (siblingWithImage?.image_url) {
+      displayProduct = { ...p, image_url: siblingWithImage.image_url }
+    }
+  }
+
+  const displayNameEn = formatProductTitle({
+    name: p.name,
+    nameAr: p.name_ar,
+    weight: p.weight,
+    lang: 'en',
+  })
+  const origin = p.weight?.includes('|') ? p.weight.split('|')[0] : null
+  const productDescriptionEn = buildProductDescription({
+      name: p.name,
+      nameAr: p.name_ar,
+      category: p.category,
+      weight: p.weight,
+      sourceDescription: p.description,
+      lang: 'en',
+    })
 
   // Fetch all weight variants of the same product (same name, has weight column)
   let weightVariants: WeightVariant[] = []
@@ -122,10 +206,6 @@ export default async function ProductPage({
       }))
     }
 
-    // Redirect non-canonical variant URLs to the canonical (oldest) for this origin group
-    if (weightVariants.length > 0 && weightVariants[0].id !== id) {
-      redirect(`/products/${weightVariants[0].id}`)
-    }
   }
 
   // Related products: same category, different name, exclude weight siblings
@@ -142,10 +222,14 @@ export default async function ProductPage({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: p.name,
-    description: p.description ?? '',
+    name: displayNameEn,
+    alternateName: p.name_ar ?? undefined,
+    description: productDescriptionEn,
     image: p.image_url ?? '',
     brand: { '@type': 'Brand', name: 'Doha Roastery' },
+    additionalProperty: origin
+      ? [{ '@type': 'PropertyValue', name: 'Origin', value: localizeOrigin(origin, 'en') }]
+      : undefined,
     offers: {
       '@type': 'Offer',
       priceCurrency: 'QAR',
@@ -162,11 +246,11 @@ export default async function ProductPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <Header />
       <ProductDetailClient
-        product={p}
+        product={displayProduct}
         weightVariants={weightVariants}
         related={(related as Product[]) ?? []}
       />

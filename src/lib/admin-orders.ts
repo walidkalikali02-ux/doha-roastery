@@ -84,6 +84,7 @@ export async function fetchAdminOrdersOverview(): Promise<AdminOrdersOverview> {
 
   const statusSequence: Order['status'][] = [
     'pending',
+    'paid',
     'confirmed',
     'processing',
     'shipped',

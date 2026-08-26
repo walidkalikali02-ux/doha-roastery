@@ -16,11 +16,10 @@ const GRIND_LABELS: Record<string, { ar: string; en: string }> = {
 }
 
 export default function CartPage() {
-  const { t, dir } = useLang()
+  const { t, dir, lang } = useLang()
   const { items, removeItem, updateQty, total, count } = useCart()
 
-  const shipping = total >= 200 ? 0 : 15
-  const grandTotal = total + shipping
+  const grandTotal = total
 
   return (
     <>
@@ -32,7 +31,7 @@ export default function CartPage() {
             <p className="text-xs tracking-[0.4em] uppercase text-sand mb-2">{t('مراجعة', 'Review')}</p>
             <h1 className="text-4xl font-light text-charcoal">
               {t('سلة التسوق', 'Shopping Cart')}
-              {count > 0 && <span className="text-sand text-2xl ms-3">({count})</span>}
+              {count > 0 && <span className="text-sand text-2xl ms-3"><bdi dir="ltr">({count})</bdi></span>}
             </h1>
           </div>
 
@@ -63,7 +62,7 @@ export default function CartPage() {
                       <Link href={`/products/${item.id}`} className="flex-shrink-0">
                         <div className="w-24 h-24 bg-cream-dark overflow-hidden">
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                            <img src={item.image_url} alt={lang === 'ar' && item.nameAr ? item.nameAr : item.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-3xl opacity-20">☕</div>
                           )}
@@ -73,8 +72,8 @@ export default function CartPage() {
                       {/* Details */}
                       <div className="flex-1 min-w-0">
                         <Link href={`/products/${item.id}`}>
-                          <h3 className="text-sm font-medium text-charcoal hover:text-sand transition-colors line-clamp-2 mb-0.5">
-                            {item.name}
+                           <h3 className="text-sm font-medium text-charcoal hover:text-sand transition-colors line-clamp-2 mb-0.5">
+                             {lang === 'ar' && item.nameAr ? item.nameAr : item.name}
                           </h3>
                         </Link>
 
@@ -100,7 +99,7 @@ export default function CartPage() {
                         )}
 
                         <p className="text-base font-light text-charcoal mb-3">
-                          {item.price.toFixed(2)} <span className="text-sand text-sm">{t('ر.ق', 'QAR')}</span>
+                           <bdi dir="ltr">{item.price.toFixed(2)}</bdi> <span className="text-sand text-sm">{t('ر.ق', 'QAR')}</span>
                         </p>
 
                         {/* Qty controls */}
@@ -113,7 +112,7 @@ export default function CartPage() {
                               <Minus size={12} strokeWidth={2} />
                             </button>
                             <span className="px-3 py-1.5 text-sm text-charcoal border-x border-sand/40 min-w-[32px] text-center">
-                              {item.quantity}
+                              <bdi dir="ltr">{item.quantity}</bdi>
                             </span>
                             <button
                               onClick={() => updateQty(item.cartKey, item.quantity + 1)}
@@ -134,7 +133,7 @@ export default function CartPage() {
                       {/* Line total */}
                       <div className="text-end flex-shrink-0">
                         <p className="text-sm font-medium text-charcoal">
-                          {(item.price * item.quantity).toFixed(2)}
+                         <bdi dir="ltr">{(item.price * item.quantity).toFixed(2)}</bdi>
                         </p>
                         <p className="text-xs text-sand">{t('ر.ق', 'QAR')}</p>
                       </div>
@@ -153,26 +152,22 @@ export default function CartPage() {
                   <div className="space-y-3 text-sm mb-6">
                     <div className="flex justify-between">
                       <span className="text-charcoal/60">{t('المجموع الفرعي', 'Subtotal')}</span>
-                      <span className="text-charcoal">{total.toFixed(2)} {t('ر.ق', 'QAR')}</span>
+                       <span className="text-charcoal"><bdi dir="ltr">{total.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-charcoal/60">{t('الشحن', 'Shipping')}</span>
-                      <span className={shipping === 0 ? 'text-green-700' : 'text-charcoal'}>
-                        {shipping === 0 ? t('مجاني', 'Free') : `${shipping.toFixed(2)} ${t('ر.ق', 'QAR')}`}
-                      </span>
+                       <span className="text-charcoal/60">{t('يُحدد عند الدفع', 'Calculated at checkout')}</span>
                     </div>
-                    {shipping > 0 && (
-                      <p className="text-[10px] text-sand tracking-wide">
-                        {t('شحن مجاني عند الطلب بـ 200 ر.ق أو أكثر', 'Free shipping on orders over 200 QAR')}
-                      </p>
-                    )}
+                    <p className="text-[10px] text-sand tracking-wide">
+                      {t('١٠ ر.ق داخل الدوحة، ١٥ ر.ق خارجها، و٥٠ ر.ق لدول مجلس التعاون.', 'QAR 10 inside Doha, QAR 15 outside Doha, and QAR 50 for GCC countries.')}
+                    </p>
                   </div>
 
                   <div className="border-t border-sand/20 pt-4 mb-6">
                     <div className="flex justify-between">
                       <span className="text-sm tracking-widest uppercase text-charcoal">{t('الإجمالي', 'Total')}</span>
                       <span className="text-xl font-light text-charcoal">
-                        {grandTotal.toFixed(2)} <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
+                         <bdi dir="ltr">{grandTotal.toFixed(2)}</bdi> <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
                       </span>
                     </div>
                   </div>

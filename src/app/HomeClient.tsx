@@ -60,10 +60,10 @@ function isGroup(item: ProductGroup | Product): item is ProductGroup {
 export default function HomeClient({ featured }: Props) {
   const { t, dir } = useLang()
 
-  const grouped = groupProducts(featured).slice(0, 6)
+  const grouped = groupProducts(featured)
 
   const bullets = [
-    { ar: 'أكثر من 5 فروع لخدمة عملائنا في قطر',           en: '5+ branches serving our customers across Qatar' },
+    { ar: 'أكثر من ٥ فروع لخدمة عملائنا في قطر',           en: '5+ branches serving our customers across Qatar' },
     { ar: 'تحميص يومي لضمان أعلى درجات الجودة',            en: 'Daily roasting for the highest quality' },
     { ar: 'شريك موثوق للمقاهي والشركات والفنادق',          en: 'Trusted partner for cafés, businesses and hotels' },
     { ar: 'ثقة آلاف العملاء منذ سنوات',                     en: 'Trusted by thousands of customers for years' },
@@ -183,7 +183,7 @@ export default function HomeClient({ featured }: Props) {
             <div className="text-sand text-7xl select-none">☕</div>
             <div className="w-px h-24 bg-sand/30" />
             <p className="text-[10px] tracking-[0.5em] uppercase text-sand/50 [writing-mode:vertical-rl]">
-              {t('دوحة روستري — منذ 2018', 'Doha Roastery — Since 2018')}
+              {t('دوحة روستري — منذ ٢٠١٧', 'Doha Roastery — Since 2017')}
             </p>
           </div>
           <div>

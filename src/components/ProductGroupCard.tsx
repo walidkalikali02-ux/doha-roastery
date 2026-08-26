@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
-import { ORIGIN_AR, QTY_AR, localizeCategory, localizeWeight } from '@/lib/display-text'
+import { QTY_AR, formatGroupedProductTitle, localizeCategory, localizeOrigin, localizeWeight } from '@/lib/display-text'
 
 export interface WeightVariant {
   id: string
@@ -66,15 +66,18 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
     ? Array.from(new Set(group.variants.map((v) => v.weight.split(COMPOUND_SEP)[0])))
     : []
 
-  const displayName = lang === 'ar' && group.baseName_ar ? group.baseName_ar : group.baseName
-  const originLabel = group.origin
-    ? (lang === 'ar' ? (ORIGIN_AR[group.origin] ?? group.origin) : group.origin)
-    : null
+  const displayTitle = formatGroupedProductTitle({
+    baseName: group.baseName,
+    baseNameAr: group.baseName_ar,
+    origin: group.origin,
+    lang,
+  })
 
   function handleAdd() {
     addItem({
       id:        selected.id,
       name:      group.baseName,
+      nameAr:    group.baseName_ar,
       weight:    selected.weight,
       grind:     'whole-bean',
       notes:     '',
@@ -92,7 +95,7 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
           {group.image_url ? (
             <img
               src={group.image_url}
-              alt={originLabel ?? displayName}
+              alt={displayTitle}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
@@ -118,26 +121,26 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
 
         <Link href={`/products/${detailId}`}>
           <h3 className="text-sm font-medium text-charcoal leading-snug mb-1 hover:text-sand transition-colors line-clamp-2">
-            {isCompoundByOrigin ? (originLabel ?? displayName) : displayName}
+            {displayTitle}
           </h3>
         </Link>
 
         {/* Show base name as subtitle when compound-by-origin */}
         {isCompoundByOrigin && (
-          <p className="text-[10px] text-charcoal/40 mb-3 leading-relaxed line-clamp-1">{displayName}</p>
+          <p className="text-[10px] text-charcoal/40 mb-3 leading-relaxed line-clamp-1">{localizeWeight(selected.weight, lang)}</p>
         )}
 
         {/* Multi-origin compound (homepage): origin tags + "Choose" link */}
         {isCompoundMulti && (
           <div>
             <p className="text-[10px] text-charcoal/40 mb-3 leading-relaxed">
-              {multiOrigins.map((o) => (lang === 'ar' ? (ORIGIN_AR[o] ?? o) : o)).join(' · ')}
+              {multiOrigins.map((o) => localizeOrigin(o, lang)).join(' · ')}
             </p>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-charcoal/40">{t('من', 'from')} </span>
                 <span className="text-base font-light text-charcoal">
-                  {Math.min(...group.variants.map((v) => v.price)).toFixed(0)}{' '}
+                  <bdi dir="ltr">{Math.min(...group.variants.map((v) => v.price)).toFixed(0)}</bdi>{' '}
                   <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
                 </span>
               </div>
@@ -179,7 +182,7 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
             )}
             <div className="flex items-center justify-between">
               <span className="text-base font-light text-charcoal">
-                {selected.price.toFixed(2)}{' '}
+                <bdi dir="ltr">{selected.price.toFixed(2)}</bdi>{' '}
                 <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
               </span>
               <button
@@ -230,7 +233,7 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
         {!isCompoundByOrigin && !isCompoundMulti && (
           <div className="flex items-center justify-between">
             <span className="text-base font-light text-charcoal">
-              {selected.price.toFixed(2)}{' '}
+                <bdi dir="ltr">{selected.price.toFixed(2)}</bdi>{' '}
               <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
             </span>
             <button
