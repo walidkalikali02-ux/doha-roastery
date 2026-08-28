@@ -3,6 +3,31 @@ import { z } from 'zod'
 import { DELIVERY_WINDOW_AR, DELIVERY_WINDOW_EN } from '@/lib/display-text'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
+// CallMeBot free WhatsApp: one-time activation per phone (see README of
+// integration). Multiple numbers can be notified — comma-separated pairs of
+// "<phone>:<apikey>" in CALLMEBOT_TARGETS, e.g.
+//   CALLMEBOT_TARGETS="+97433224627:1234567,+97455555555:7654321"
+async function notifyWhatsApp(text: string) {
+  const targets = (process.env.CALLMEBOT_TARGETS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+  if (targets.length === 0) return
+
+  await Promise.all(targets.map(async (target) => {
+    const [phone, apikey] = target.split(':').map((s) => s.trim())
+    if (!phone || !apikey) return
+    // CallMeBot expects the phone without the leading "+".
+    const cleanPhone = phone.replace(/^\+/, '')
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(apikey)}`
+    try {
+      const res = await fetch(url, { method: 'GET' })
+      if (!res.ok) {
+        console.error('CallMeBot WhatsApp failed', { phone, status: res.status, body: await res.text().catch(() => '') })
+      }
+    } catch (e) {
+      console.error('CallMeBot WhatsApp exception', { phone, error: e })
+    }
+  }))
+}
+
 function displayOrderNumber(raw: string) {
   const cleaned = raw.trim()
   if (cleaned.startsWith('DR-')) return `#${cleaned.slice(3, 11)}`
@@ -229,6 +254,19 @@ export async function POST(request: Request) {
     // the customer copy failed. Log for admin visibility.
     console.error('Failed to send customer order email', customerEmailResult.error)
   }
+
+  // WhatsApp notification to owner phone(s). Sent once per order thanks to
+  // the same email_notified_at dedup — CallMeBot rate-limits at ~1 msg/min
+  // so we make it a short summary, not a full receipt.
+  const waLines = [
+    `🛍️ Order ${shortOrderNo}`,
+    `👤 ${customerName}`,
+    order.phone ? `📞 ${order.phone}` : null,
+    `📍 ${[order.area, order.city].filter(Boolean).join(', ') || '—'}`,
+    `💳 ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card (paid)'}`,
+    `💰 ${order.total.toFixed(2)} QAR`,
+  ].filter(Boolean).join('\n')
+  await notifyWhatsApp(waLines)
 
   return Response.json({
     ok: true,
