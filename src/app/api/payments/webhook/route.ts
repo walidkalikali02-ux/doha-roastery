@@ -135,5 +135,18 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Could not update order' }, { status: 500 })
   }
 
+  // Fire notification whenever the order just became paid. The API dedups via
+  // orders.email_notified_at, so if the browser callback beats us to it, this
+  // is a no-op — and if we beat the callback (common), we're the one who
+  // actually sends the email that used to be dropped.
+  if (paid) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin
+    await fetch(`${siteUrl.replace(/\/$/, '')}/api/order-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id }),
+    }).catch((e) => console.error('Webhook order notification failed', e))
+  }
+
   return Response.json({ ok: true })
 }

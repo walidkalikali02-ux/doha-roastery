@@ -61,39 +61,14 @@ export async function GET(request: Request) {
       .update({ status, mf_payment_id: paymentId })
       .eq('id', order.id)
 
-    if (paid && order.status !== 'paid') {
-      const { data: items } = await supabase
-        .from('order_items')
-        .select('product_name, variant_name, quantity, unit_price')
-        .eq('order_id', order.id)
-
-      const address = (order.shipping_address ?? {}) as Record<string, string>
+    if (paid) {
+      // Notification API is idempotent (dedups via orders.email_notified_at),
+      // so it's safe to call regardless of whether the webhook already fired.
+      // Passing just { orderId } lets the API load everything fresh from DB.
       await fetch(new URL('/api/order-notification', request.url), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId:      order.id,
-          orderNumber:  order.order_number,
-          guestEmail:   order.guest_email,
-          firstName:    address.first_name ?? 'Customer',
-          lastName:     address.last_name  ?? '',
-          phone:        address.phone      ?? '',
-          address:      address.address    ?? '',
-          city:         address.city       ?? '',
-          area:         address.area       ?? '',
-          notes:        address.notes      ?? '',
-          shippingZone: address.shipping_zone ?? 'qatar',
-          shipping:     Number(order.shipping_cost ?? 0),
-          paymentMethod: 'card',
-          total:        Number(order.total ?? 0),
-          items: (items ?? []).map((i) => ({
-            name:     i.product_name,
-            nameAr:   null,
-            weight:   i.variant_name,
-            quantity: Number(i.quantity),
-            price:    Number(i.unit_price),
-          })),
-        }),
+        body: JSON.stringify({ orderId: order.id }),
       }).catch((e) => console.error('Order notification failed', e))
     }
 
