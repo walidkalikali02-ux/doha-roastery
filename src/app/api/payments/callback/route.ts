@@ -1,5 +1,6 @@
 import { getPaymentDetails } from '@/lib/myfatoorah'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { sendOrderEmails } from '@/lib/send-order-emails'
 
 function resultUrl(request: Request, status: string, orderNumber?: string) {
   const url = new URL('/checkout/success', request.url)
@@ -62,14 +63,12 @@ export async function GET(request: Request) {
       .eq('id', order.id)
 
     if (paid) {
-      // Notification API is idempotent (dedups via orders.email_notified_at),
-      // so it's safe to call regardless of whether the webhook already fired.
-      // Passing just { orderId } lets the API load everything fresh from DB.
-      await fetch(new URL('/api/order-notification', request.url), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id }),
-      }).catch((e) => console.error('Order notification failed', e))
+      // Direct call — no HTTP roundtrip, no race condition issues.
+      // sendOrderEmails uses atomic RPC claims per recipient, so even if the
+      // webhook fires concurrently, each email is sent exactly once.
+      await sendOrderEmails(order.id).catch((e) =>
+        console.error('Order emails failed from callback', e),
+      )
     }
 
     return resultUrl(

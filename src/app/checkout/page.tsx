@@ -114,32 +114,10 @@ function CheckoutInner() {
         return
       }
 
-      await fetch('/api/order-notification', {
+      await fetch('/api/send-order-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: order_id,
-          orderNumber: order_number,
-          guestEmail: orderEmail,
-          firstName: form.firstName,
-          lastName: form.lastName,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-          area: form.area,
-          notes: form.notes,
-          shippingZone,
-          shipping,
-          paymentMethod,
-          total: Number((data as { total?: number }).total ?? grandTotal),
-          items: items.map((item) => ({
-            name: item.name,
-            nameAr: item.nameAr,
-            weight: item.weight,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-        }),
+        body: JSON.stringify({ orderId: order_id }),
       }).catch((emailError) => {
         console.error('Order created but email notification failed', emailError)
       })
