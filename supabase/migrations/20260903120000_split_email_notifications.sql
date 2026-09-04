@@ -62,10 +62,4 @@ as $$
   WHERE id = p_order_id;
 $$;
 
--- Migrate existing data: if email_notified_at was set, assume both were sent
-UPDATE public.orders
-SET customer_email_notified_at = email_notified_at,
-    admin_email_notified_at = email_notified_at
-WHERE email_notified_at IS NOT NULL;
-
 notify pgrst, 'reload schema';
