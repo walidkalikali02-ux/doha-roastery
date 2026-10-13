@@ -1,7 +1,6 @@
 import { Metadata } from 'next'
 import TermsClient from './TermsClient'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
+import { SITE_URL } from '@/lib/seo'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions | الشروط والأحكام — دوحة روستري',

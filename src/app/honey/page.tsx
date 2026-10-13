@@ -5,10 +5,10 @@ import HoneyClient from './HoneyClient'
 import { supabase } from '@/lib/supabase'
 import { Product } from '@/lib/types'
 import { dedupeProducts } from '@/lib/products'
+import { collectionJsonLd, SITE_URL } from '@/lib/seo'
+import { safeJsonLd } from '@/lib/json-ld'
 
 export const dynamic = 'force-dynamic'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
   title: 'العسل | Honey في قطر — دوحة روستري',
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     siteName: 'Doha Roastery',
     locale: 'ar_QA',
     type: 'website',
+    images: [{ url: '/logo.png', alt: 'Doha Roastery | دوحة روستري' }],
   },
 }
 
@@ -32,10 +33,19 @@ export default async function HoneyPage() {
     .neq('status', 'archived')
     .order('created_at', { ascending: false })
 
+  const uniqueProducts = dedupeProducts((products as Product[]) ?? [])
+  const jsonLd = collectionJsonLd(
+    'منتجات العسل في قطر',
+    'Carefully selected honey products with delivery across Qatar.',
+    '/honey',
+    uniqueProducts,
+  )
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <Header />
-      <HoneyClient products={dedupeProducts((products as Product[]) ?? [])} />
+      <HoneyClient products={uniqueProducts} />
       <Footer />
     </>
   )

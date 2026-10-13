@@ -5,10 +5,10 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ProductsClient from './ProductsClient'
 import { dedupeProducts } from '@/lib/products'
+import { collectionJsonLd, SITE_URL } from '@/lib/seo'
+import { safeJsonLd } from '@/lib/json-ld'
 
 export const dynamic = 'force-dynamic'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
   title: 'شراء قهوة مختصة في قطر | دوحة روستري',
@@ -24,6 +24,7 @@ export const metadata: Metadata = {
     siteName: 'Doha Roastery',
     locale: 'ar_QA',
     type: 'website',
+    images: [{ url: '/logo.png', alt: 'Doha Roastery | دوحة روستري' }],
   },
 }
 
@@ -38,9 +39,16 @@ export default async function ProductsPage() {
   const categories: string[] = Array.from(
     new Set(uniqueProducts.map((p) => p.category).filter(Boolean))
   ) as string[]
+  const jsonLd = collectionJsonLd(
+    'قهوة مختصة وأدوات التحضير في قطر',
+    'Specialty coffee beans, blends, capsules, drip coffee, and brewing equipment delivered across Qatar.',
+    '/products',
+    uniqueProducts,
+  )
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <Header />
       <ProductsClient products={uniqueProducts} categories={categories} />
       <Footer />

@@ -1,6 +1,5 @@
 import { MetadataRoute } from 'next'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
+import { SITE_URL } from '@/lib/seo'
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,9 +7,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin/', '/account/', '/cart/', '/checkout/', '/auth/'],
+        disallow: ['/admin', '/account', '/cart', '/checkout', '/auth', '/api'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   }
 }

@@ -1,6 +1,9 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { Order } from '@/lib/types'
 import AdminOrdersClient from './AdminOrdersClient'
+import { privatePageMetadata } from '@/lib/seo'
+
+export const metadata = privatePageMetadata
 
 export const dynamic = 'force-dynamic'
 

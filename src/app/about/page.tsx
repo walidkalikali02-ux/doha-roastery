@@ -1,7 +1,6 @@
 import { Metadata } from 'next'
 import AboutClient from './AboutClient'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
+import { SITE_URL } from '@/lib/seo'
 
 export const metadata: Metadata = {
   title: 'عن دوحة روستري | محمصة قهوة مختصة في الدوحة',
@@ -17,6 +16,7 @@ export const metadata: Metadata = {
     siteName: 'Doha Roastery',
     locale: 'ar_QA',
     type: 'website',
+    images: [{ url: '/logo.png', alt: 'Doha Roastery | دوحة روستري' }],
   },
 }
 

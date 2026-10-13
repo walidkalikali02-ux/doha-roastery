@@ -6,10 +6,9 @@ import Footer from '@/components/Footer'
 import HomeClient from './HomeClient'
 import { safeJsonLd } from '@/lib/json-ld'
 import { dedupeProducts } from '@/lib/products'
+import { SITE_URL } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
   title: 'قهوة مختصة في قطر | دوحة روستري',
@@ -26,6 +25,7 @@ export const metadata: Metadata = {
     locale: 'ar_QA',
     alternateLocale: 'en_US',
     type: 'website',
+    images: [{ url: '/logo.png', alt: 'Doha Roastery | دوحة روستري' }],
   },
 }
 
@@ -41,6 +41,7 @@ export default async function HomePage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CoffeeShop',
+    '@id': `${SITE_URL}/#organization`,
     name: 'Doha Roastery',
     alternateName: 'دوحة روستري',
     url: SITE_URL,

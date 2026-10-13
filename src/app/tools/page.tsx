@@ -5,10 +5,10 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ToolsClient from './ToolsClient'
 import { dedupeProducts } from '@/lib/products'
+import { collectionJsonLd, SITE_URL } from '@/lib/seo'
+import { safeJsonLd } from '@/lib/json-ld'
 
 export const dynamic = 'force-dynamic'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
 
 export const metadata: Metadata = {
   title: 'Coffee Tools & Equipment Qatar | أدوات القهوة — دوحة روستري',
@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     siteName: 'Doha Roastery',
     locale: 'ar_QA',
     type: 'website',
+    images: [{ url: '/logo.png', alt: 'Doha Roastery | دوحة روستري' }],
   },
 }
 
@@ -33,10 +34,19 @@ export default async function ToolsPage() {
     .neq('status', 'archived')
     .order('created_at', { ascending: false })
 
+  const uniqueProducts = dedupeProducts((products as Product[]) ?? [])
+  const jsonLd = collectionJsonLd(
+    'Coffee tools and equipment in Qatar',
+    'Coffee brewing tools and equipment for homes and cafes in Qatar.',
+    '/tools',
+    uniqueProducts,
+  )
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <Header />
-      <ToolsClient products={dedupeProducts((products as Product[]) ?? [])} />
+      <ToolsClient products={uniqueProducts} />
       <Footer />
     </>
   )

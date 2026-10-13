@@ -2,6 +2,9 @@ import type { ComponentProps } from 'react'
 import { fetchAdminOrdersOverview } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import AdminDashboardClient from './AdminDashboardClient'
+import { privatePageMetadata } from '@/lib/seo'
+
+export const metadata = privatePageMetadata
 
 export default async function AdminDashboardPage() {
   const [{ count: totalProducts }, orderOverview] = await Promise.all([

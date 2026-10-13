@@ -7,8 +7,7 @@ import Footer from '@/components/Footer'
 import { buildProductDescription, formatProductTitle, localizeOrigin, normalizeArabicDescription } from '@/lib/display-text'
 import ProductDetailClient, { WeightVariant } from './ProductDetailClient'
 import { safeJsonLd } from '@/lib/json-ld'
-
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
+import { SITE_URL } from '@/lib/seo'
 
 function toMetaDescription(value: string) {
   if (value.length <= 160) return value
@@ -28,7 +27,7 @@ export async function generateMetadata({
     .eq('id', id)
     .single()
 
-  if (!product) return { title: 'Product Not Found' }
+  if (!product) return { title: 'Product Not Found', robots: { index: false, follow: false } }
 
   const p = product as Pick<Product, 'name' | 'name_ar' | 'description' | 'description_ar' | 'category' | 'price' | 'image_url' | 'tags' | 'weight'>
   const nameEn = formatProductTitle({

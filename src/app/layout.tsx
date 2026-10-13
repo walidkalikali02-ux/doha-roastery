@@ -5,6 +5,8 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import FloatingWhatsAppButton from "@/components/FloatingWhatsAppButton";
 import localFont from "next/font/local";
+import { safeJsonLd } from "@/lib/json-ld";
+import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_NAME_AR, SITE_URL } from "@/lib/seo";
 
 const cairo = localFont({
   src: [
@@ -26,18 +28,16 @@ const inter = localFont({
   variable: "--font-inter",
 })
 
-const SITE_URL = 'https://doha-roastery-eta.vercel.app'
-
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: 'قهوة مختصة في قطر | دوحة روستري',
-    template: '%s | دوحة روستري',
+    template: '%s',
   },
   description:
     'تسوّق قهوة مختصة وحبوب قهوة وكبسولات وأدوات تحضير في قطر من دوحة روستري. تحميص بعناية وتوصيل داخل الدوحة وجميع أنحاء قطر.',
-  keywords:
-    'specialty coffee Qatar, buy coffee Doha, قهوة مختصة قطر, Doha Roastery, coffee beans Qatar, Nespresso capsules Qatar, drip coffee Qatar, قهوة مختصة, محمصة قهوة الدوحة',
+  applicationName: SITE_NAME,
+  keywords: ['specialty coffee Qatar', 'coffee roaster Doha', 'buy coffee Doha', 'قهوة مختصة قطر', 'محمصة قهوة الدوحة', 'coffee beans Qatar', 'Nespresso capsules Qatar', 'drip coffee Qatar', SITE_NAME, SITE_NAME_AR],
   authors: [{ name: 'Doha Roastery', url: SITE_URL }],
   creator: 'Doha Roastery',
   openGraph: {
@@ -49,6 +49,7 @@ export const metadata: Metadata = {
     title: 'Doha Roastery | Specialty Coffee Qatar',
     description:
       'Specialty coffee roasted fresh daily in Doha, Qatar. Shop beans, capsules, drip pouches and more.',
+    images: [{ url: DEFAULT_OG_IMAGE, alt: `${SITE_NAME} | ${SITE_NAME_AR}` }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -66,6 +67,12 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   alternates: { canonical: SITE_URL },
+  category: 'Specialty coffee',
+  other: {
+    'geo.region': 'QA-DA',
+    'geo.placename': 'Doha, Qatar',
+    ICBM: '25.2854, 51.5310',
+  },
 };
 
 export default function RootLayout({
@@ -73,9 +80,49 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': ['Organization', 'LocalBusiness', 'CafeOrCoffeeShop'],
+        '@id': `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        alternateName: SITE_NAME_AR,
+        url: SITE_URL,
+        logo: `${SITE_URL}/logo.png`,
+        image: `${SITE_URL}/logo.png`,
+        description: 'Specialty coffee roastery serving individuals, cafes, hotels, and restaurants across Qatar.',
+        telephone: '+97433337592',
+        email: 'info@doharoastery.com',
+        priceRange: '$$',
+        currenciesAccepted: 'QAR',
+        areaServed: { '@type': 'Country', name: 'Qatar' },
+        address: { '@type': 'PostalAddress', addressLocality: 'Doha', addressCountry: 'QA' },
+        geo: { '@type': 'GeoCoordinates', latitude: 25.2854, longitude: 51.531 },
+        openingHoursSpecification: [{
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+          opens: '08:00',
+          closes: '22:00',
+        }],
+        sameAs: ['https://instagram.com/doharoastery', 'https://twitter.com/doharoastery'],
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: SITE_NAME,
+        alternateName: SITE_NAME_AR,
+        publisher: { '@id': `${SITE_URL}/#organization` },
+        inLanguage: ['ar-QA', 'en'],
+      },
+    ],
+  }
+
   return (
     <html lang="ar" dir="rtl" className={`h-full antialiased ${cairo.variable} ${inter.variable}`}>
       <body className="min-h-full flex flex-col bg-cream">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationJsonLd) }} />
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>

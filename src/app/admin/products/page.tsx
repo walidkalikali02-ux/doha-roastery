@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { Product } from '@/lib/types'
 import AdminProductsClient from './AdminProductsClient'
+import { privatePageMetadata } from '@/lib/seo'
+
+export const metadata = privatePageMetadata
 
 export default async function AdminProductsPage() {
   const { data: products } = await supabase
