@@ -1,11 +1,13 @@
 'use client'
 import Link from 'next/link'
+import { Bean, Candy, Citrus, Coffee, Flame, Gift, Package } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import ProductCard from '@/components/ProductCard'
 import ProductGroupCard, { ProductGroup, WeightVariant } from '@/components/ProductGroupCard'
 import GeometricPattern from '@/components/GeometricPattern'
 import { Product } from '@/lib/types'
 import { getBrandName } from '@/lib/display-text'
+import { COLLECTIONS } from '@/lib/collections'
 
 interface Props { featured: Product[] }
 
@@ -69,16 +71,69 @@ export default function HomeClient({ featured }: Props) {
     { ar: 'ثقة آلاف العملاء منذ سنوات',                     en: 'Trusted by thousands of customers for years' },
   ]
 
+  const categoryIcons = [Coffee, Bean, Candy, Citrus, Flame, Gift, Package]
+
   return (
     <main className="pt-24" dir={dir}>
 
+      {/* ── Collection gallery ── */}
+      <section className="relative overflow-hidden border-y border-sand/20 bg-cream py-7 sm:py-9">
+        <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_15%_0%,rgba(194,157,94,0.16),transparent_26%),radial-gradient(circle_at_85%_100%,rgba(194,157,94,0.12),transparent_24%)]" />
+        <div className="relative mx-auto max-w-7xl px-6">
+          <div className="mb-6 flex items-end justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <span className="h-px w-9 bg-sand" />
+              <div>
+                <p className="mb-1 text-[9px] font-medium uppercase tracking-[0.38em] text-sand">
+                  {t('مجموعات دوحة', 'Doha collections')}
+                </p>
+                <h2 className="text-lg font-light text-charcoal sm:text-xl">
+                  {t('اكتشف مذاقك', 'Discover your taste')}
+                </h2>
+              </div>
+            </div>
+            <p className="text-[9px] uppercase tracking-[0.24em] text-charcoal/35">
+              {t('اسحب للاستكشاف', 'Swipe to explore')}
+            </p>
+          </div>
+
+          <div className="-mx-2 overflow-x-auto px-2 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max snap-x snap-mandatory gap-1 lg:grid lg:min-w-0 lg:grid-cols-7 lg:gap-4">
+              {COLLECTIONS.map(({ slug, ar, en }, index) => {
+                const Icon = categoryIcons[index]
+                return (
+                  <Link
+                    key={slug}
+                    href={`/collections/${slug}`}
+                    aria-label={t(ar, en)}
+                    className="group flex w-[120px] shrink-0 snap-start flex-col items-center gap-3 py-1 text-center outline-none lg:w-auto"
+                  >
+                    <span className="relative flex size-[88px] items-center justify-center rounded-full border border-charcoal/10 bg-[#f4eee5] transition-all duration-500 group-hover:-translate-y-1 group-hover:border-sand group-hover:bg-charcoal group-hover:shadow-[0_18px_40px_rgba(21,21,21,0.18)] sm:size-[98px]">
+                      <span className="absolute inset-[7px] rounded-full border border-dashed border-sand/35 transition-transform duration-700 group-hover:rotate-90 group-hover:border-sand/45" />
+                      <span className="absolute -end-0.5 top-2 flex size-5 items-center justify-center rounded-full border border-cream bg-charcoal font-mono text-[7px] text-cream transition-colors duration-300 group-hover:bg-sand group-hover:text-charcoal">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <Icon size={31} strokeWidth={1.15} className="relative text-sand transition-all duration-500 group-hover:scale-110 group-hover:text-cream" />
+                    </span>
+                    <span className="relative text-[12px] font-medium leading-relaxed text-charcoal sm:text-[13px]">
+                      {t(ar, en)}
+                      <span className="absolute -bottom-1 start-1/2 h-px w-0 -translate-x-1/2 bg-sand transition-all duration-300 group-hover:w-full" />
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Hero ── */}
-      <section className="relative min-h-[90vh] bg-charcoal flex items-end overflow-hidden">
+      <section className="relative min-h-[78vh] bg-charcoal flex items-center overflow-hidden">
         <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/70 to-charcoal/30" />
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-sand to-transparent" />
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 pb-24">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="flex items-center gap-4 mb-8">
             <div className="h-px w-12 bg-sand" />
             <span className="text-sand text-xs tracking-[0.5em] uppercase">
@@ -118,6 +173,7 @@ export default function HomeClient({ featured }: Props) {
               </span>
             </Link>
           </div>
+
         </div>
 
         <div className="absolute bottom-8 start-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-cream/20">

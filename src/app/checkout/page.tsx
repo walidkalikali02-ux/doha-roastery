@@ -50,6 +50,7 @@ function CheckoutInner() {
 
   const shipping = getShippingCost(shippingZone) ?? 0
   const grandTotal = total + shipping
+  const cashOnDeliveryAvailable = shippingZone === 'doha' || shippingZone === 'qatar'
 
   function f(key: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -75,6 +76,11 @@ function CheckoutInner() {
     if (!shippingZone) {
       setError(t('يرجى اختيار منطقة التوصيل', 'Please choose a delivery area'))
       setStep('shipping')
+      return
+    }
+    if (paymentMethod === 'cod' && !cashOnDeliveryAvailable) {
+      setPaymentMethod('card')
+      setError(t('الدفع عند الاستلام متاح للطلبات داخل قطر فقط', 'Cash on delivery is available for orders within Qatar only'))
       return
     }
     setSubmitting(true)
@@ -275,7 +281,11 @@ function CheckoutInner() {
                       </label>
                       <select
                         value={shippingZone}
-                        onChange={(e) => setShippingZone(e.target.value as ShippingZone | '')}
+                        onChange={(e) => {
+                          const zone = e.target.value as ShippingZone | ''
+                          setShippingZone(zone)
+                          if (zone === 'gcc') setPaymentMethod('card')
+                        }}
                         required
                         className="w-full border border-sand/30 px-4 py-3 text-sm bg-white text-charcoal focus:outline-none focus:border-charcoal"
                       >
@@ -364,20 +374,22 @@ function CheckoutInner() {
                        {t('طريقة الدفع', 'Payment Method')}
                      </p>
                      <div className="grid sm:grid-cols-2 gap-3">
-                       <label className={`flex items-start gap-3 border p-4 cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-charcoal bg-cream/40' : 'border-sand/20'}`}>
-                         <input
-                           type="radio"
-                           name="payment-method"
-                           value="cod"
-                           checked={paymentMethod === 'cod'}
-                           onChange={() => setPaymentMethod('cod')}
-                           className="mt-1 accent-charcoal"
-                         />
-                         <span>
-                           <span className="block text-sm text-charcoal">{t('الدفع عند الاستلام', 'Cash on Delivery')}</span>
-                           <span className="block text-xs text-charcoal/50 mt-1">{t('ادفع عند وصول طلبك', 'Pay when your order arrives')}</span>
-                         </span>
-                       </label>
+                       {cashOnDeliveryAvailable && (
+                         <label className={`flex items-start gap-3 border p-4 cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-charcoal bg-cream/40' : 'border-sand/20'}`}>
+                           <input
+                             type="radio"
+                             name="payment-method"
+                             value="cod"
+                             checked={paymentMethod === 'cod'}
+                             onChange={() => setPaymentMethod('cod')}
+                             className="mt-1 accent-charcoal"
+                           />
+                           <span>
+                             <span className="block text-sm text-charcoal">{t('الدفع عند الاستلام', 'Cash on Delivery')}</span>
+                             <span className="block text-xs text-charcoal/50 mt-1">{t('ادفع عند وصول طلبك', 'Pay when your order arrives')}</span>
+                           </span>
+                         </label>
+                       )}
                        <label className={`flex items-start gap-3 border p-4 transition-colors ${paymentMethod === 'card' ? 'border-sand bg-cream/40' : 'border-sand/20 opacity-60'}`}>
                          <input
                            type="radio"
@@ -393,6 +405,11 @@ function CheckoutInner() {
                          </span>
                        </label>
                      </div>
+                     {!cashOnDeliveryAvailable && (
+                       <p className="mt-3 text-xs text-charcoal/50">
+                         {t('الدفع عند الاستلام متاح للطلبات داخل قطر فقط.', 'Cash on delivery is available for orders within Qatar only.')}
+                       </p>
+                     )}
                    </div>
 
                    {/* Items summary */}
