@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import imageCompression from 'browser-image-compression'
 import { Upload, X, Loader, ImageIcon, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -8,9 +8,10 @@ import { useLang } from '@/contexts/LanguageContext'
 interface Props {
   value: string | null
   onChange: (url: string) => void
+  onBusyChange?: (busy: boolean) => void
 }
 
-export default function ImageUpload({ value, onChange }: Props) {
+export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
   const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<'idle' | 'compressing' | 'uploading' | 'done' | 'error'>('idle')
@@ -19,6 +20,11 @@ export default function ImageUpload({ value, onChange }: Props) {
   const [compressedSize, setCompressedSize] = useState(0)
   const [preview, setPreview] = useState<string | null>(value)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    onBusyChange?.(status === 'compressing' || status === 'uploading')
+    return () => onBusyChange?.(false)
+  }, [status, onBusyChange])
 
   async function handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -54,23 +60,28 @@ export default function ImageUpload({ value, onChange }: Props) {
     const ext = compressed.name.split('.').pop() ?? 'jpg'
     const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
-    const { data, error } = await supabase.storage
-      .from('product-images')
-      .upload(path, compressed, { upsert: false, contentType: compressed.type })
+    try {
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(path, compressed, { upsert: false, contentType: compressed.type })
 
-    if (error) {
+      if (error) {
+        setStatus('error')
+        setErrorMsg(error.message)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(data.path)
+
+      setProgress(100)
+      setStatus('done')
+      onChange(publicUrl)
+    } catch (error) {
       setStatus('error')
-      setErrorMsg(error.message)
-      return
+      setErrorMsg(error instanceof Error ? error.message : t('فشل رفع الصورة', 'Image upload failed'))
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('product-images')
-      .getPublicUrl(data.path)
-
-    setProgress(100)
-    setStatus('done')
-    onChange(publicUrl)
   }
 
   function handleDrop(e: React.DragEvent) {

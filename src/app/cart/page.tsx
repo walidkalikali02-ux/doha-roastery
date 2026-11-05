@@ -6,6 +6,7 @@ import { useCart } from '@/contexts/CartContext'
 import { localizeWeight } from '@/lib/display-text'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import ProductImage from '@/components/ProductImage'
 
 const GRIND_LABELS: Record<string, { ar: string; en: string }> = {
   'whole-bean':   { ar: 'حبوب كاملة', en: 'Whole Bean' },
@@ -17,7 +18,7 @@ const GRIND_LABELS: Record<string, { ar: string; en: string }> = {
 
 export default function CartPage() {
   const { t, dir, lang } = useLang()
-  const { items, removeItem, updateQty, total, count } = useCart()
+  const { items, removeItem, updateQty, total, count, syncing, syncError } = useCart()
 
   const grandTotal = total
 
@@ -59,15 +60,9 @@ export default function CartPage() {
                   return (
                     <div key={item.cartKey} className="flex gap-5 py-6">
                       {/* Thumbnail */}
-                      <Link href={`/products/${item.id}`} className="flex-shrink-0">
-                        <div className="w-24 h-24 bg-cream-dark overflow-hidden">
-                          {item.image_url ? (
-                            <img src={item.image_url} alt={lang === 'ar' && item.nameAr ? item.nameAr : item.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-3xl opacity-20">☕</div>
-                          )}
+                        <div className="w-24 h-24 flex-shrink-0 bg-cream-dark overflow-hidden">
+                          <ProductImage src={item.image_url} href={`/products/${item.id}`} alt={lang === 'ar' && item.nameAr ? item.nameAr : item.name} />
                         </div>
-                      </Link>
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
@@ -102,6 +97,9 @@ export default function CartPage() {
                            <bdi dir="ltr">{item.price.toFixed(2)}</bdi> <span className="text-sand text-sm">{t('ر.ق', 'QAR')}</span>
                         </p>
 
+                        {(item.available === false || (item.stockQuantity != null && item.quantity > item.stockQuantity)) && (
+                          <p role="alert" className="text-xs text-red-600 mb-3">{t('غير متاح بهذه الكمية. يرجى تعديل الكمية أو إزالة المنتج.', 'Unavailable in this quantity. Reduce the quantity or remove this item.')}</p>
+                        )}
                         {/* Qty controls */}
                         <div className="flex items-center gap-4">
                           <div className="flex items-center border border-sand/40">
@@ -148,6 +146,8 @@ export default function CartPage() {
                   <h2 className="text-sm tracking-widest uppercase text-charcoal mb-6">
                     {t('ملخص الطلب', 'Order Summary')}
                   </h2>
+                  {syncing && <p role="status" className="text-xs text-charcoal/60 mb-3">{t('جاري تحديث الأسعار والمخزون...', 'Refreshing prices and stock...')}</p>}
+                  {syncError && <p role="alert" className="text-xs text-red-600 mb-3">{t('تعذر تحديث الأسعار. تحقق من الاتصال وأعد المحاولة.', 'Could not refresh prices. Check your connection and retry.')}</p>}
 
                   <div className="space-y-3 text-sm mb-6">
                     <div className="flex justify-between">

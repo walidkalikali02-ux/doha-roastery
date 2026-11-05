@@ -2,6 +2,8 @@ import { getPaymentDetails } from '@/lib/myfatoorah'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { sendOrderEmails } from '@/lib/send-order-emails'
 
+export const maxDuration = 60
+
 function resultUrl(request: Request, status: string, orderNumber?: string) {
   const url = new URL('/checkout/success', request.url)
   if (orderNumber) url.searchParams.set('order', orderNumber)
@@ -57,15 +59,15 @@ export async function GET(request: Request) {
       : failed ? 'payment_failed'
       : order.status
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('orders')
       .update({ status, mf_payment_id: paymentId })
       .eq('id', order.id)
 
+    if (updateError) throw new Error(`Could not save payment: ${updateError.message}`)
+
     if (paid) {
-      // Direct call — no HTTP roundtrip, no race condition issues.
-      // sendOrderEmails uses atomic RPC claims per recipient, so even if the
-      // webhook fires concurrently, each email is sent exactly once.
+      // Provider idempotency keys deduplicate concurrent callback/webhook sends.
       await sendOrderEmails(order.id).catch((e) =>
         console.error('Order emails failed from callback', e),
       )

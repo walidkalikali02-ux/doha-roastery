@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabasePublic as supabase } from '@/lib/supabase-public'
 import { Product } from '@/lib/types'
 import { Metadata } from 'next'
 import Header from '@/components/Header'
@@ -31,7 +31,7 @@ export default async function ToolsPage() {
     .from('ecommerce_products')
     .select('*')
     .eq('category', 'Tools')
-    .neq('status', 'archived')
+    .eq('status', 'active')
     .order('created_at', { ascending: false })
 
   const uniqueProducts = dedupeProducts((products as Product[]) ?? [])

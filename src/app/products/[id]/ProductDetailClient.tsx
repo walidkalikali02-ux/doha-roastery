@@ -6,7 +6,7 @@ import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { Product } from '@/lib/types'
 import ProductCard from '@/components/ProductCard'
-import GeometricPattern from '@/components/GeometricPattern'
+import ProductImage from '@/components/ProductImage'
 import { buildProductDescription, normalizeArabicDescription, QTY_AR, formatProductTitle, localizeCategory, localizeOrigin, localizeWeight } from '@/lib/display-text'
 
 export interface WeightVariant {
@@ -149,18 +149,11 @@ export default function ProductDetailClient({ product, weightVariants, related }
 
         {/* Image */}
         <div className="relative aspect-square bg-cream-dark overflow-hidden">
-          {product.image_url ? (
-            <img
+            <ProductImage
               src={product.image_url}
               alt={productTitle}
-              className="w-full h-full object-cover"
+              loading="eager"
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <GeometricPattern className="absolute inset-0 w-full h-full text-sand opacity-30" />
-              <span className="text-8xl opacity-20 relative z-10">☕</span>
-            </div>
-          )}
           <div className="absolute top-4 start-4 flex flex-col gap-2">
             {hasDiscount && (
               <span className="bg-terracotta text-cream text-[10px] tracking-widest uppercase px-3 py-1">
@@ -232,7 +225,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                       }`}
                     >
                       <span className="font-medium">{lang === 'ar' ? (QTY_AR[qty] ?? qty) : qty}</span>
-                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(0)}</bdi> {t('ر.ق', 'QAR')}</span>
+                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</span>
                     </button>
                   )
                 })}
@@ -261,7 +254,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
                       }`}
                     >
                       <span className="font-medium">{localizeWeight(v.weight, lang)}</span>
-                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(0)}</bdi> {t('ر.ق', 'QAR')}</span>
+                      <span className="opacity-60"><bdi dir="ltr">{v.price.toFixed(2)}</bdi> {t('ر.ق', 'QAR')}</span>
                     </button>
                   )
                 })}

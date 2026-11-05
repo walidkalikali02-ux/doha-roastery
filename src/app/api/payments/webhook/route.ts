@@ -3,6 +3,8 @@ import { getPaymentDetails } from '@/lib/myfatoorah'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { sendOrderEmails } from '@/lib/send-order-emails'
 
+export const maxDuration = 60
+
 // MyFatoorah v2 webhook payload shape
 type PaymentWebhook = {
   Event?: { Code?: number; Name?: string }
@@ -136,13 +138,18 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Could not update order' }, { status: 500 })
   }
 
-  // Fire notification whenever the order just became paid. sendOrderEmails
-  // uses independent atomic claims per recipient (customer + admin), so if the
-  // browser callback beats us to one, only the other is sent — no duplicates.
+  // Recover any missing recipient after verified payment. Return a retryable
+  // status when delivery fails, so the gateway can redeliver the webhook.
   if (paid) {
-    await sendOrderEmails(order.id).catch((e) =>
-      console.error('Order emails failed from webhook', e),
-    )
+    try {
+      const result = await sendOrderEmails(order.id)
+      if (result.customerEmailError || result.adminEmailError) {
+        return Response.json({ error: 'Order email pending retry' }, { status: 503 })
+      }
+    } catch (error) {
+      console.error('Order emails failed from webhook', error)
+      return Response.json({ error: 'Order email pending retry' }, { status: 503 })
+    }
   }
 
   return Response.json({ ok: true })

@@ -4,6 +4,7 @@ import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { Product } from '@/lib/types'
 import { localizeCategory } from '@/lib/display-text'
+import ProductImage from '@/components/ProductImage'
 
 interface Props {
   product: Product
@@ -19,19 +20,13 @@ export default function ProductCard({ product }: Props) {
   return (
     <div className="group bg-white border border-sand/20 hover:border-sand/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
       {/* Image area — links to detail */}
-      <Link href={`/products/${product.id}`}>
         <div className="relative aspect-square bg-cream-dark overflow-hidden">
-          {product.image_url ? (
-            <img
+            <ProductImage
               src={product.image_url}
+              href={`/products/${product.id}`}
               alt={lang === 'ar' && product.name_ar ? product.name_ar : product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="group-hover:scale-105 transition-transform duration-500"
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-6xl opacity-20">☕</span>
-            </div>
-          )}
 
           {/* Badges */}
           <div className="absolute top-3 start-3 flex flex-col gap-1">
@@ -52,7 +47,6 @@ export default function ProductCard({ product }: Props) {
             )}
           </div>
         </div>
-      </Link>
 
       {/* Info */}
       <div className="p-4">

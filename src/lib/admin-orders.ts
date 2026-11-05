@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
+import { adminFetch } from '@/lib/admin-fetch'
 
 export interface DailyOrderMetric {
   date: string
@@ -27,12 +28,10 @@ export interface AdminOrdersOverview {
 }
 
 export async function fetchAdminOrders(): Promise<Order[]> {
-  const { data } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  return (data as Order[]) ?? []
+  const response = await adminFetch('/api/admin/orders')
+  const json = await response.json()
+  if (!response.ok) throw new Error(json.error ?? 'Could not refresh orders')
+  return json.data as Order[]
 }
 
 export async function fetchAdminOrdersOverview(): Promise<AdminOrdersOverview> {

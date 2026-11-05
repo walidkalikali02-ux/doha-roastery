@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useLang } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { QTY_AR, formatGroupedProductTitle, localizeCategory, localizeOrigin, localizeWeight } from '@/lib/display-text'
+import ProductImage from '@/components/ProductImage'
 
 export interface WeightVariant {
   id: string
@@ -90,19 +91,13 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
     <div className="group bg-white border border-sand/20 hover:border-sand/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
 
       {/* Image */}
-      <Link href={`/products/${detailId}`}>
         <div className="relative aspect-square bg-cream-dark overflow-hidden">
-          {group.image_url ? (
-            <img
+            <ProductImage
               src={group.image_url}
+              href={`/products/${detailId}`}
               alt={displayTitle}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="group-hover:scale-105 transition-transform duration-500"
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-6xl opacity-20">☕</span>
-            </div>
-          )}
           {isOutOfStock && !isCompoundByOrigin && !isCompoundMulti && (
             <div className="absolute top-3 start-3">
               <span className="bg-charcoal text-cream text-[10px] tracking-widest uppercase px-2 py-0.5">
@@ -111,7 +106,6 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
             </div>
           )}
         </div>
-      </Link>
 
       {/* Info */}
       <div className="p-4">
@@ -140,7 +134,7 @@ export default function ProductGroupCard({ group }: { group: ProductGroup }) {
               <div>
                 <span className="text-[10px] text-charcoal/40">{t('من', 'from')} </span>
                 <span className="text-base font-light text-charcoal">
-                  <bdi dir="ltr">{Math.min(...group.variants.map((v) => v.price)).toFixed(0)}</bdi>{' '}
+                  <bdi dir="ltr">{Math.min(...group.variants.map((v) => v.price)).toFixed(2)}</bdi>{' '}
                   <span className="text-sm text-sand">{t('ر.ق', 'QAR')}</span>
                 </span>
               </div>

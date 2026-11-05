@@ -5,7 +5,7 @@ import Footer from '@/components/Footer'
 import { COLLECTIONS, getCollection } from '@/lib/collections'
 import { dedupeProducts } from '@/lib/products'
 import { SITE_URL } from '@/lib/seo'
-import { supabase } from '@/lib/supabase'
+import { supabasePublic as supabase } from '@/lib/supabase-public'
 import { Product } from '@/lib/types'
 import CollectionClient from './CollectionClient'
 

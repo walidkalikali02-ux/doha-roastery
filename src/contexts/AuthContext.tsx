@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -57,19 +58,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Supabase holds its auth lock while dispatching this callback. Querying
+    // profiles here can deadlock getSession(), checkout, and admin mutations.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      try {
-        if (session?.user) await loadProfile(session.user.id)
-        else setProfile(null)
-      } catch {
-        setProfile(null)
-      } finally {
-        setLoading(false)
-      }
+      setAuthReady(true)
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!authReady) return
+    let active = true
+    async function resolveProfile() {
+      try {
+        const { data, error } = session?.user
+          ? await supabase.from('profiles').select('id, full_name, role, avatar_url').eq('id', session.user.id).maybeSingle()
+          : { data: null, error: null }
+        if (active) setProfile(error ? null : data as Profile | null)
+      } catch {
+        if (active) setProfile(null)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void resolveProfile()
+    return () => { active = false }
+  }, [session, authReady])
 
   async function signUp(email: string, password: string, fullName: string) {
     const { data, error } = await supabase.auth.signUp({
@@ -111,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'MANAGER'
+  const isAdmin = profile?.id === session?.user.id && (profile?.role === 'ADMIN' || profile?.role === 'MANAGER')
 
   return (
     <AuthContext.Provider value={{

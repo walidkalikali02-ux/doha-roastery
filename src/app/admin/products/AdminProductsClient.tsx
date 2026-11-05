@@ -1,12 +1,11 @@
 'use client'
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Check, Search, CheckSquare, Square } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Plus, Pencil, Trash2, X, Check, Search, CheckSquare, Square, RefreshCw } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { adminFetch, notifyCatalogChanged } from '@/lib/admin-fetch'
 import { Product } from '@/lib/types'
 import ImageUpload from '@/components/ImageUpload'
-
-interface Props { initialProducts: Product[] }
 
 const EMPTY_PRODUCT: Omit<Product, 'id' | 'created_at' | 'updated_at'> = {
   name: '', name_ar: '', sku: '', category: '', description: '', description_ar: '', price: 0,
@@ -20,18 +19,44 @@ const STATUS_COLORS: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-500',
 }
 
-export default function AdminProductsClient({ initialProducts }: Props) {
+export default function AdminProductsClient() {
   const { t, dir } = useLang()
-  const [products, setProducts]     = useState<Product[]>(initialProducts)
+  const { session } = useAuth()
+  const [products, setProducts]     = useState<Product[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [message, setMessage]       = useState<string | null>(null)
   const [search, setSearch]         = useState('')
   const [selected, setSelected]     = useState<Set<string>>(new Set())
   const [modal, setModal]           = useState<'create' | 'edit' | null>(null)
   const [editingId, setEditingId]   = useState<string | null>(null)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [imageBusy, setImageBusy] = useState(false)
   const [form, setForm]             = useState<typeof EMPTY_PRODUCT>({ ...EMPTY_PRODUCT })
   const [saving, setSaving]         = useState(false)
   const [deleting, setDeleting]     = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
+
+  const refreshProducts = useCallback(async () => {
+    if (!session) return
+    setLoading(true)
+    try {
+      const response = await adminFetch('/api/admin/products')
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error)
+      setProducts(json.data)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [session])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshProducts() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [refreshProducts])
 
   const filtered     = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
   const allChecked   = filtered.length > 0 && filtered.every(p => selected.has(p.id))
@@ -41,7 +66,8 @@ export default function AdminProductsClient({ initialProducts }: Props) {
   function toggleOne(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -73,33 +99,42 @@ export default function AdminProductsClient({ initialProducts }: Props) {
 
     setBulkDeleting(true)
     const ids = Array.from(selected)
-    const { error: err } = await supabase
-      .from('ecommerce_products')
-      .delete()
-      .in('id', ids)
-
-    if (!err) {
-      setProducts(prev => prev.filter(p => !selected.has(p.id)))
+    try {
+      const response = await adminFetch('/api/admin/products', { method: 'DELETE', body: JSON.stringify({ ids }) })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error)
+      const deleted = new Set<string>(json.data.map((p: { id: string }) => p.id))
+      setProducts(prev => prev.filter(p => !deleted.has(p.id)))
       setSelected(new Set())
+      notifyCatalogChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBulkDeleting(false)
     }
-    setBulkDeleting(false)
   }
 
   /* ── Single delete ── */
   async function handleDelete(id: string) {
     if (!confirm(t('هل أنت متأكد من الحذف؟', 'Delete this product?'))) return
     setDeleting(id)
-    const { error: err } = await supabase.from('ecommerce_products').delete().eq('id', id)
-    if (!err) {
+    try {
+      const response = await adminFetch('/api/admin/products', { method: 'DELETE', body: JSON.stringify({ ids: [id] }) })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error)
       setProducts(prev => prev.filter(p => p.id !== id))
       setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
+      notifyCatalogChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeleting(null)
     }
-    setDeleting(null)
   }
 
   /* ── Create / Edit ── */
   function openCreate() {
-    setForm({ ...EMPTY_PRODUCT }); setEditingId(null); setModal('create'); setError(null)
+    setForm({ ...EMPTY_PRODUCT }); setEditingId(null); setEditingProduct(null); setModal('create'); setError(null); setMessage(null)
   }
 
   function openEdit(p: Product) {
@@ -109,22 +144,31 @@ export default function AdminProductsClient({ initialProducts }: Props) {
       quantity: p.quantity, low_stock_threshold: p.low_stock_threshold, status: p.status,
       image_url: p.image_url, tags: p.tags, in_stock: p.in_stock, weight: p.weight ?? '',
     })
-    setEditingId(p.id); setModal('edit'); setError(null)
+    setEditingId(p.id); setEditingProduct(p); setModal('edit'); setError(null); setMessage(null)
   }
 
   async function handleSave() {
     if (!form.name.trim()) { setError(t('الاسم مطلوب', 'Name is required')); return }
     setSaving(true); setError(null)
     try {
+      const existing = editingProduct
+      const changes = Object.fromEntries(Object.entries(form).filter(([key, value]) =>
+        JSON.stringify(value) !== JSON.stringify(existing?.[key as keyof Product] ?? (typeof value === 'string' ? '' : null))
+      ))
+      if (modal !== 'create' && !Object.keys(changes).length) { setModal(null); return }
+      const response = await adminFetch('/api/admin/products', {
+        method: modal === 'create' ? 'POST' : 'PATCH',
+        body: JSON.stringify(modal === 'create' ? form : { id: editingId, expectedUpdatedAt: existing?.updated_at, changes }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error)
       if (modal === 'create') {
-        const { data, error: err } = await supabase.from('ecommerce_products').insert([form]).select().single()
-        if (err) throw err
-        setProducts([data as Product, ...products])
-      } else if (editingId) {
-        const { data, error: err } = await supabase.from('ecommerce_products').update(form).eq('id', editingId).select().single()
-        if (err) throw err
-        setProducts(products.map(p => p.id === editingId ? (data as Product) : p))
+        setProducts(prev => [json.data as Product, ...prev])
+      } else {
+        setProducts(prev => prev.map(p => p.id === editingId ? json.data as Product : p))
       }
+      notifyCatalogChanged()
+      setMessage(t('تم حفظ المنتج وتحديث المتجر', 'Product saved and storefront updated'))
       setModal(null)
     } catch (e: unknown) {
       setError((e as Error).message)
@@ -135,7 +179,7 @@ export default function AdminProductsClient({ initialProducts }: Props) {
 
   const F = (key: keyof typeof EMPTY_PRODUCT) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      const val = e.target.type === 'number' ? Number(e.target.value)
+      const val = e.target.type === 'number' ? (e.target.value === '' && ['compare_at_price', 'cost_per_item'].includes(key) ? null : Number(e.target.value))
         : e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked
         : e.target.value
       setForm({ ...form, [key]: val })
@@ -155,12 +199,18 @@ export default function AdminProductsClient({ initialProducts }: Props) {
         <h2 className="text-sm tracking-widest uppercase text-charcoal">
           {t('المنتجات', 'Products')} ({products.length})
         </h2>
+        <div className="flex gap-2">
+        <button onClick={refreshProducts} disabled={loading} aria-label={t('تحديث المنتجات', 'Refresh products')} className="border border-sand/30 p-2.5 disabled:opacity-50"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         <button onClick={openCreate}
           className="flex items-center gap-2 bg-charcoal text-cream px-4 py-2.5 text-xs tracking-widest uppercase hover:bg-charcoal-light transition-colors">
           <Plus size={14} />
           {t('منتج جديد', 'New Product')}
         </button>
+        </div>
       </div>
+
+      {!modal && error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {message && <p role="status" className="text-sm text-green-700">{message}</p>}
 
       {/* ── Search ── */}
       <div className="relative">
@@ -232,7 +282,7 @@ export default function AdminProductsClient({ initialProducts }: Props) {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-charcoal/30 tracking-widest text-xs">
-                  {t('لا توجد منتجات', 'No products')}
+                  {loading ? t('جاري تحميل المنتجات...', 'Loading products...') : t('لا توجد منتجات', 'No products')}
                 </td>
               </tr>
             )}
@@ -290,11 +340,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => openEdit(p)}
+                      <button onClick={() => openEdit(p)} aria-label={`${t('تعديل', 'Edit')} ${p.name}`}
                         className="text-charcoal/40 hover:text-sand transition-colors">
                         <Pencil size={14} strokeWidth={1.5} />
                       </button>
-                      <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
+                      <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id} aria-label={`${t('حذف', 'Delete')} ${p.name}`}
                         className="text-charcoal/40 hover:text-red-500 transition-colors disabled:opacity-30">
                         <Trash2 size={14} strokeWidth={1.5} />
                       </button>
@@ -315,7 +365,7 @@ export default function AdminProductsClient({ initialProducts }: Props) {
               <h3 className="text-sm tracking-widest uppercase text-charcoal">
                 {modal === 'create' ? t('منتج جديد', 'New Product') : t('تعديل المنتج', 'Edit Product')}
               </h3>
-              <button onClick={() => setModal(null)} className="text-charcoal/40 hover:text-charcoal transition-colors">
+              <button disabled={saving || imageBusy} onClick={() => setModal(null)} className="text-charcoal/40 hover:text-charcoal transition-colors disabled:opacity-50">
                 <X size={18} strokeWidth={1.5} />
               </button>
             </div>
@@ -344,6 +394,10 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                   <option value="Honey" />
                   <option value="Tools" />
                 </datalist>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('الوزن / الخيار', 'Weight / Variant')}</label>
+                <input value={form.weight ?? ''} onChange={F('weight')} placeholder="250g / Brazil|1 Box" className="w-full border border-sand/30 px-3 py-2 text-sm focus:outline-none focus:border-charcoal" />
               </div>
               <div>
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('السعر (ر.ق)', 'Price (QAR)')}</label>
@@ -377,7 +431,7 @@ export default function AdminProductsClient({ initialProducts }: Props) {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">{t('صورة المنتج', 'Product Image')}</label>
-                <ImageUpload value={form.image_url} onChange={url => setForm({ ...form, image_url: url })} />
+                <ImageUpload key={editingId ?? 'new'} value={form.image_url} onChange={url => setForm(prev => ({ ...prev, image_url: url }))} onBusyChange={setImageBusy} />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs tracking-widest uppercase text-charcoal/50 mb-2">Description (English)</label>
@@ -391,11 +445,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
             </div>
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-sand/20 sticky bottom-0 bg-white">
-              <button onClick={() => setModal(null)}
+              <button disabled={saving || imageBusy} onClick={() => setModal(null)}
                 className="text-xs tracking-widest uppercase border border-sand/40 px-5 py-2.5 text-charcoal hover:border-charcoal transition-colors">
                 {t('إلغاء', 'Cancel')}
               </button>
-              <button onClick={handleSave} disabled={saving}
+              <button onClick={handleSave} disabled={saving || imageBusy}
                 className="flex items-center gap-2 text-xs tracking-widest uppercase bg-charcoal text-cream px-5 py-2.5 hover:bg-charcoal-light transition-colors disabled:opacity-50">
                 {saving ? '...' : <Check size={14} />}
                 {t('حفظ', 'Save')}

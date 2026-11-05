@@ -37,6 +37,8 @@ export interface Order {
   shipping_address: Record<string, string>
   mf_payment_url?: string | null
   mf_invoice_id?: string | null
+  customer_email_notified_at?: string | null
+  admin_email_notified_at?: string | null
   created_at: string
   updated_at: string
 }

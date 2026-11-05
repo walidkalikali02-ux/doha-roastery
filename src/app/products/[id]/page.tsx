@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabasePublic as supabase } from '@/lib/supabase-public'
 import { Product } from '@/lib/types'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
@@ -8,6 +8,8 @@ import { buildProductDescription, formatProductTitle, localizeOrigin, normalizeA
 import ProductDetailClient, { WeightVariant } from './ProductDetailClient'
 import { safeJsonLd } from '@/lib/json-ld'
 import { SITE_URL } from '@/lib/seo'
+
+export const dynamic = 'force-dynamic'
 
 function toMetaDescription(value: string) {
   if (value.length <= 160) return value
@@ -25,6 +27,7 @@ export async function generateMetadata({
     .from('ecommerce_products')
     .select('name, name_ar, description, description_ar, category, price, image_url, tags, weight')
     .eq('id', id)
+    .eq('status', 'active')
     .single()
 
   if (!product) return { title: 'Product Not Found', robots: { index: false, follow: false } }
@@ -137,6 +140,7 @@ export default async function ProductPage({
     .from('ecommerce_products')
     .select('*')
     .eq('id', id)
+    .eq('status', 'active')
     .single()
 
   if (!product) notFound()

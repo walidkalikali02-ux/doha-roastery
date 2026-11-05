@@ -1,5 +1,6 @@
 'use client'
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useCallback, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import { reconcileCartProducts } from '@/lib/cart-products'
 
 export interface CartItem {
   cartKey: string      // unique key: `${id}-${grind}`
@@ -12,6 +13,8 @@ export interface CartItem {
   price: number
   image_url: string | null
   quantity: number
+  available?: boolean
+  stockQuantity?: number
 }
 
 interface AddItemInput {
@@ -33,6 +36,9 @@ interface CartContextType {
   clear: () => void
   total: number
   count: number
+  syncProducts: () => Promise<{ changed: boolean; unavailable: boolean }>
+  syncing: boolean
+  syncError: string | null
 }
 
 const CartContext = createContext<CartContextType>({
@@ -43,18 +49,80 @@ const CartContext = createContext<CartContextType>({
   clear: () => {},
   total: 0,
   count: 0,
+  syncProducts: async () => ({ changed: false, unavailable: false }),
+  syncing: false,
+  syncError: null,
 })
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [ready, setReady] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const itemsRef = useRef(items)
+  const syncVersion = useRef(0)
+
+  useEffect(() => { itemsRef.current = items }, [items])
+
+  const syncProducts = useCallback(async () => {
+    const ids = [...new Set(itemsRef.current.map((item) => item.id))]
+    const version = ++syncVersion.current
+    if (!ids.length) {
+      setSyncing(false)
+      setSyncError(null)
+      return { changed: false, unavailable: false }
+    }
+    setSyncing(true)
+    try {
+      const response = await fetch(`/api/products?ids=${encodeURIComponent(ids.join(','))}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error ?? 'Could not refresh prices')
+      if (version !== syncVersion.current) throw new Error('Product refresh superseded; please retry')
+      const before = itemsRef.current
+      const next = reconcileCartProducts(before, json.data, ids)
+      const changed = before.some((item, i) => item.price !== next[i].price)
+      setItems((prev) => reconcileCartProducts(prev, json.data, ids))
+      setSyncError(null)
+      return { changed, unavailable: next.some((item) => item.available === false || (item.stockQuantity != null && item.quantity > item.stockQuantity)) }
+    } catch (e) {
+      if (version === syncVersion.current) setSyncError(e instanceof Error ? e.message : String(e))
+      throw e
+    } finally {
+      if (version === syncVersion.current) setSyncing(false)
+    }
+  }, [])
+
+  const productIds = [...new Set(items.map((item) => item.id))].sort().join(',')
+  useEffect(() => {
+    if (!ready) return
+    const refresh = () => { if (document.visibilityState === 'visible') void syncProducts().catch(() => {}) }
+    const onStorage = (event: StorageEvent) => { if (event.key === 'doha_catalog_updated') refresh() }
+    refresh()
+    window.addEventListener('focus', refresh)
+    window.addEventListener('catalog-updated', refresh)
+    window.addEventListener('storage', onStorage)
+    document.addEventListener('visibilitychange', refresh)
+    const timer = window.setInterval(refresh, 60_000)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('catalog-updated', refresh)
+      window.removeEventListener('storage', onStorage)
+      document.removeEventListener('visibilitychange', refresh)
+      window.clearInterval(timer)
+    }
+  }, [ready, productIds, syncProducts])
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('doha_cart_v2')
-      if (stored) setItems(JSON.parse(stored))
-    } catch {}
-    setReady(true)
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('doha_cart_v2') ?? '[]')
+        if (Array.isArray(stored)) setItems(stored.filter((item) =>
+          typeof item.id === 'string' && typeof item.cartKey === 'string' && Number.isFinite(item.price) && Number.isInteger(item.quantity) && item.quantity > 0
+        ))
+      } catch {}
+      setReady(true)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -68,7 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) {
         return prev.map((i) =>
           i.cartKey === cartKey
-            ? { ...i, quantity: i.quantity + 1, notes: item.notes || i.notes }
+            ? { ...i, ...item, quantity: i.quantity + 1, notes: item.notes || i.notes }
             : i
         )
       }
@@ -91,7 +159,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const count = items.reduce((s, i) => s + i.quantity, 0)
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQty, clear, total, count }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQty, clear, total, count, syncProducts, syncing, syncError }}>
       {children}
     </CartContext.Provider>
   )

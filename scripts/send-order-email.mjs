@@ -68,6 +68,7 @@ const area = addr.area || ''
 const city = addr.city || ''
 const shippingZone = addr.shipping_zone || 'qatar'
 const paymentMethod = addr.payment_method || (order.mf_invoice_id ? 'card' : 'cod')
+const awaitingPayment = paymentMethod === 'card' && order.status !== 'paid'
 const notes = addr.notes || ''
 const fullAddress = [streetAddress, area, city].filter(Boolean).join(', ')
 
@@ -131,8 +132,8 @@ const rowsEn = buildItemRowsHtml(items || [], 'ltr')
 
 const customerHtml = `<div style="font-family:Arial,sans-serif;color:#1a1a1a;max-width:600px;margin:0 auto">
   <div dir="rtl" style="padding:20px">
-    <h2 style="color:#1a1a1a;margin-bottom:8px">تم تأكيد طلبك</h2>
-    <p>شكرًا لك <strong>${escapeHtml(customerName)}</strong>. تم استلام طلبك رقم <strong>#${escapeHtml(orderNumber)}</strong> وسيتم تجهيزه للتوصيل.</p>
+    <h2 style="color:#1a1a1a;margin-bottom:8px">${awaitingPayment ? 'تم استلام طلبك — بانتظار الدفع' : 'تم تأكيد طلبك'}</h2>
+    <p>شكرًا لك <strong>${escapeHtml(customerName)}</strong>. تم استلام طلبك رقم <strong>#${escapeHtml(orderNumber)}</strong>. ${awaitingPayment ? 'لم يتم تأكيد الدفع بعد. سيتم تجهيز الطلب بعد إتمام الدفع.' : 'سيتم تجهيز طلبك للتوصيل.'}</p>
     <table style="border-collapse:collapse;width:100%;margin:16px 0"><thead><tr><th style="padding:10px;text-align:right;border-bottom:2px solid #222">المنتج</th><th style="padding:10px;border-bottom:2px solid #222">الكمية</th><th style="padding:10px;text-align:left;border-bottom:2px solid #222">السعر</th></tr></thead><tbody>${rows}</tbody></table>
     <p><strong>المجموع الفرعي:</strong> ${money(order.subtotal)} ر.ق</p>
     ${order.discount_amount > 0 ? `<p><strong>الخصم:</strong> -${money(order.discount_amount)} ر.ق</p>` : ''}
@@ -148,8 +149,8 @@ const customerHtml = `<div style="font-family:Arial,sans-serif;color:#1a1a1a;max
   </div>
   <hr style="border:none;border-top:2px solid #eee;margin:0 20px">
   <div dir="ltr" style="padding:20px">
-    <h2 style="color:#1a1a1a;margin-bottom:8px">Order Confirmed</h2>
-    <p>Hi <strong>${escapeHtml(customerName)}</strong>, your order <strong>#${escapeHtml(orderNumber)}</strong> has been confirmed and is being prepared for delivery.</p>
+    <h2 style="color:#1a1a1a;margin-bottom:8px">${awaitingPayment ? 'Order Received — Awaiting Payment' : 'Order Confirmed'}</h2>
+    <p>Hi <strong>${escapeHtml(customerName)}</strong>, we received your order <strong>#${escapeHtml(orderNumber)}</strong>. ${awaitingPayment ? 'Payment has not been confirmed yet. Your order will be prepared once payment is complete.' : 'Your order has been confirmed and is being prepared for delivery.'}</p>
     <table style="border-collapse:collapse;width:100%;margin:16px 0"><thead><tr><th style="padding:10px;text-align:left;border-bottom:2px solid #222">Product</th><th style="padding:10px;border-bottom:2px solid #222">Qty</th><th style="padding:10px;text-align:right;border-bottom:2px solid #222">Price</th></tr></thead><tbody>${rowsEn}</tbody></table>
     <p><strong>Subtotal:</strong> ${money(order.subtotal)} QAR</p>
     ${order.discount_amount > 0 ? `<p><strong>Discount:</strong> -${money(order.discount_amount)} QAR</p>` : ''}
@@ -216,7 +217,7 @@ console.log('\nSending customer email...')
 const customerResult = await resend.emails.send({
   from: fromEmail,
   to: [order.guest_email],
-  subject: `Order confirmed ${shortOrderNo} — Doha Roastery`,
+  subject: `${awaitingPayment ? 'Order received' : 'Order confirmed'} ${shortOrderNo} — Doha Roastery`,
   html: customerHtml,
 })
 if (customerResult.error) {
@@ -238,13 +239,20 @@ if (adminResult.error) {
   console.log('Admin email SENT to:', adminEmail)
 }
 
-// Update notification timestamps
-await supabase
-  .from('orders')
-  .update({
-    customer_email_notified_at: new Date().toISOString(),
-    admin_email_notified_at: new Date().toISOString(),
-  })
-  .eq('id', order.id)
+// Never mark a failed send as notified or overwrite a previous success.
+const notified = {}
+if (!customerResult.error && customerResult.data?.id) notified.customer_email_notified_at = new Date().toISOString()
+if (!adminResult.error && adminResult.data?.id) notified.admin_email_notified_at = new Date().toISOString()
+if (Object.keys(notified).length) {
+  const { error } = await supabase
+    .from('orders')
+    .update(notified)
+    .eq('id', order.id)
+  if (error) {
+    console.error('Could not record email notification timestamps:', error.message)
+    process.exitCode = 1
+  }
+}
+if (customerResult.error || adminResult.error) process.exitCode = 1
 
 console.log('\nDone.')

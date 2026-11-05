@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import HoneyClient from './HoneyClient'
-import { supabase } from '@/lib/supabase'
+import { supabasePublic as supabase } from '@/lib/supabase-public'
 import { Product } from '@/lib/types'
 import { dedupeProducts } from '@/lib/products'
 import { collectionJsonLd, SITE_URL } from '@/lib/seo'
@@ -30,7 +30,7 @@ export default async function HoneyPage() {
     .from('ecommerce_products')
     .select('*')
     .or('category.eq.Honey,name.ilike.*honey*,name_ar.ilike.*عسل*')
-    .neq('status', 'archived')
+    .eq('status', 'active')
     .order('created_at', { ascending: false })
 
   const uniqueProducts = dedupeProducts((products as Product[]) ?? [])

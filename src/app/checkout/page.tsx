@@ -33,7 +33,7 @@ const EMPTY: FormData = {
 
 function CheckoutInner() {
   const { t, dir, lang } = useLang()
-  const { items, total, clear } = useCart()
+  const { items, total, clear, syncProducts, syncing, syncError } = useCart()
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -46,7 +46,8 @@ function CheckoutInner() {
   const [shippingZone, setShippingZone] = useState<ShippingZone | ''>('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
   const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState<string | null>(null)
-  const contactEmail = user?.email ?? form.email
+  const [emailOverride, setEmailOverride] = useState<string | null>(null)
+  const contactEmail = emailOverride ?? user?.email ?? form.email
 
   const shipping = getShippingCost(shippingZone) ?? 0
   const grandTotal = total + shipping
@@ -85,32 +86,47 @@ function CheckoutInner() {
     }
     setSubmitting(true)
     setError(null)
-    const orderEmail = user?.email ?? form.email
+    const orderEmail = contactEmail.trim().toLowerCase()
     try {
-      // Server-side RPC recomputes subtotal/shipping/total from ecommerce_products
-      // and generates the order_number. Client-supplied prices are ignored.
-      const { data, error: rpcErr } = await supabase.rpc('place_order', {
-        p_guest_email: orderEmail,
-        p_shipping_address: {
-          first_name: form.firstName,
-          last_name: form.lastName,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-          area: form.area,
-          notes: form.notes,
-          shipping_zone: shippingZone,
-          payment_method: paymentMethod,
+      const prices = await syncProducts()
+      if (prices.unavailable) throw new Error(t('يوجد منتج غير متاح أو الكمية المطلوبة أكبر من المخزون. راجع السلة.', 'An item is unavailable or exceeds current stock. Please review your cart.'))
+      if (prices.changed) {
+        setError(t('تم تحديث الأسعار من المتجر. راجع الإجمالي واضغط تأكيد الطلب مرة أخرى.', 'Prices were updated from the store. Review the total and confirm your order again.'))
+        return
+      }
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        p_items: items.map((item) => ({
-          product_id: item.id,
-          quantity: item.quantity,
-          weight: item.weight ?? null,
-          grind: item.grind ?? null,
-        })),
+        body: JSON.stringify({
+          email: orderEmail,
+          shippingAddress: {
+            first_name: form.firstName,
+            last_name: form.lastName,
+            phone: form.phone,
+            address: form.address,
+            city: form.city,
+            area: form.area,
+            notes: form.notes,
+            shipping_zone: shippingZone,
+            payment_method: paymentMethod,
+          },
+          items: items.map((item) => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            weight: item.weight ?? null,
+            grind: item.grind ?? null,
+          })),
+        }),
       })
 
-      if (rpcErr || !data) throw rpcErr ?? new Error(t('تعذر إنشاء الطلب', 'Order creation failed'))
+      const data = await response.json().catch(() => null)
+      if (!response.ok || !data?.order_id) {
+        throw new Error(data?.error ?? t('تعذر إنشاء الطلب', 'Order creation failed'))
+      }
 
       const { order_id, order_number } = data as { order_id: string; order_number: string }
 
@@ -119,14 +135,6 @@ function CheckoutInner() {
         await startPayment(order_id)
         return
       }
-
-      await fetch('/api/send-order-emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order_id }),
-      }).catch((emailError) => {
-        console.error('Order created but email notification failed', emailError)
-      })
 
       clear()
       router.push(`/checkout/success?order=${encodeURIComponent(order_number)}`)
@@ -239,7 +247,8 @@ function CheckoutInner() {
                   </div>
 
                   <div className="grid gap-4">
-                    <Field label={t('البريد الإلكتروني *', 'Email *')} type="email" value={contactEmail} onChange={f('email')} required disabled={Boolean(user)} />
+                    <Field label={t('البريد الإلكتروني *', 'Email *')} type="email" value={contactEmail} onChange={(e) => setEmailOverride(e.target.value)} required />
+                    <p className="text-xs text-charcoal/60">{t('سيتم إرسال تفاصيل الطلب إلى هذا البريد. تأكد من كتابته بشكل صحيح.', 'Order details will be sent to this email. Please check it carefully.')}</p>
                     <div className="grid grid-cols-2 gap-4">
                       <Field label={t('الاسم الأول *', 'First Name *')} value={form.firstName} onChange={f('firstName')} required />
                       <Field label={t('اسم العائلة *', 'Last Name *')} value={form.lastName} onChange={f('lastName')} required />
@@ -249,8 +258,8 @@ function CheckoutInner() {
 
                   <button
                     onClick={() => {
-                      if (!contactEmail || !form.firstName || !form.lastName || !form.phone) {
-                        setError(t('يرجى تعبئة الحقول المطلوبة', 'Please fill all required fields'))
+                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim()) || !form.firstName.trim() || !form.lastName.trim() || !form.phone.trim()) {
+                        setError(t('يرجى إدخال بريد إلكتروني صحيح وتعبئة الحقول المطلوبة', 'Please enter a valid email and fill all required fields'))
                         return
                       }
                       setError(null)
@@ -457,7 +466,7 @@ function CheckoutInner() {
                     </button>
                     <button
                       onClick={placeOrder}
-                       disabled={submitting}
+                       disabled={submitting || syncing}
                       className="flex-1 flex items-center justify-center gap-2 bg-charcoal text-cream py-3.5 text-sm tracking-widest uppercase hover:bg-charcoal-light transition-colors disabled:opacity-50"
                     >
                       <Lock size={14} strokeWidth={1.5} />
@@ -480,6 +489,8 @@ function CheckoutInner() {
             <div className="lg:col-span-2">
               <div className="bg-white border border-sand/20 p-6 sticky top-24">
                 <h3 className="text-xs tracking-widest uppercase text-charcoal/50 mb-5">{t('ملخص الطلب', 'Order Summary')}</h3>
+                {syncing && <p role="status" className="text-xs text-charcoal/60 mb-3">{t('جاري التحقق من الأسعار والمخزون...', 'Checking current prices and stock...')}</p>}
+                {syncError && <p role="alert" className="text-xs text-red-600 mb-3">{t('تعذر تحديث الأسعار. سيتم التحقق منها مجددًا قبل إنشاء الطلب.', 'Could not refresh prices. They will be checked again before placing your order.')}</p>}
 
                 <div className="space-y-3 mb-5">
                   {items.map((item) => (

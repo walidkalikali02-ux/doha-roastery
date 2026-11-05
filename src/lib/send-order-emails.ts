@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { DELIVERY_WINDOW_AR, DELIVERY_WINDOW_EN, formatOrderNumber } from '@/lib/display-text'
+import { deliverOrderEmail } from '@/lib/order-email-delivery'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,8 @@ type OrderRow = {
   mf_invoice_id: string | null
   mf_payment_id: string | null
   created_at: string
+  customer_email_notified_at: string | null
+  admin_email_notified_at: string | null
 }
 
 type EmailResult = {
@@ -80,45 +83,34 @@ async function loadOrder(orderId: string): Promise<{
   const { data: order, error: orderErr } = await supabase
     .from('orders')
     .select(
-      'id, order_number, guest_email, status, subtotal, discount_amount, shipping_cost, total, shipping_address, mf_invoice_id, mf_payment_id, created_at',
+      'id, order_number, guest_email, status, subtotal, discount_amount, shipping_cost, total, shipping_address, mf_invoice_id, mf_payment_id, created_at, customer_email_notified_at, admin_email_notified_at',
     )
     .eq('id', orderId)
     .maybeSingle()
 
-  if (orderErr || !order) return null
+  if (orderErr) throw new Error(`Could not load order: ${orderErr.message}`)
+  if (!order) return null
 
-  const { data: items } = await supabase
+  const { data: items, error: itemsError } = await supabase
     .from('order_items')
     .select('product_name, variant_name, quantity, unit_price, total_price')
     .eq('order_id', orderId)
 
+  if (itemsError) throw new Error(`Could not load order items: ${itemsError.message}`)
+
   return { order: order as OrderRow, items: (items ?? []) as OrderItem[] }
 }
 
-// ─── Atomic Claims ───────────────────────────────────────────────────────────
-// Each email recipient is claimed independently via an atomic RPC.
-// Only the first caller gets `true`; all others get `false`.
-
-async function claimCustomerEmail(orderId: string): Promise<boolean> {
-  const supabase = getSupabaseAdmin()
-  const { data } = await supabase.rpc('claim_customer_email', { p_order_id: orderId })
-  return Boolean(data)
-}
-
-async function claimAdminEmail(orderId: string): Promise<boolean> {
-  const supabase = getSupabaseAdmin()
-  const { data } = await supabase.rpc('claim_admin_email', { p_order_id: orderId })
-  return Boolean(data)
-}
-
-async function releaseCustomerEmail(orderId: string) {
-  const supabase = getSupabaseAdmin()
-  await supabase.rpc('release_customer_email', { p_order_id: orderId })
-}
-
-async function releaseAdminEmail(orderId: string) {
-  const supabase = getSupabaseAdmin()
-  await supabase.rpc('release_admin_email', { p_order_id: orderId })
+// Persist success only AFTER Resend accepts the message. Resend idempotency
+// keys protect concurrent checkout, callback, webhook, and recovery requests.
+async function markEmailSent(orderId: string, recipient: 'customer' | 'admin') {
+  const column = recipient === 'customer' ? 'customer_email_notified_at' : 'admin_email_notified_at'
+  const { error } = await getSupabaseAdmin()
+    .from('orders')
+    .update({ [column]: new Date().toISOString() })
+    .eq('id', orderId)
+    .is(column, null)
+  if (error) throw new Error(`Could not record ${recipient} email: ${error.message}`)
 }
 
 // ─── Item Rows (shared HTML fragment) ────────────────────────────────────────
@@ -163,13 +155,14 @@ function buildCustomerEmailHtml(opts: {
 
   const rows = buildItemRowsHtml(items, 'rtl')
   const rowsEn = buildItemRowsHtml(items, 'ltr')
+  const awaitingPayment = paymentMethod === 'card' && paymentStatus !== 'paid'
   const paymentLine = hasMfPayment ? `MyFatoorah Payment ID: ${escapeHtml(opts.hasMfPayment ? 'Yes' : 'No')}` : ''
 
   return `<div style="font-family:Arial,sans-serif;color:#1a1a1a;max-width:600px;margin:0 auto">
   <!-- Arabic Section -->
   <div dir="rtl" style="padding:20px">
-    <h2 style="color:#1a1a1a;margin-bottom:8px">تم تأكيد طلبك</h2>
-    <p>شكرًا لك <strong>${escapeHtml(customerName)}</strong>. تم استلام طلبك رقم <strong>#${escapeHtml(orderNumber)}</strong> وسيتم تجهيزه للتوصيل.</p>
+    <h2 style="color:#1a1a1a;margin-bottom:8px">${awaitingPayment ? 'تم استلام طلبك — بانتظار الدفع' : 'تم تأكيد طلبك'}</h2>
+    <p>شكرًا لك <strong>${escapeHtml(customerName)}</strong>. تم استلام طلبك رقم <strong>#${escapeHtml(orderNumber)}</strong>. ${awaitingPayment ? 'لم يتم تأكيد الدفع بعد. سيتم تجهيز الطلب بعد إتمام الدفع.' : 'سيتم تجهيز طلبك للتوصيل.'}</p>
 
     <table style="border-collapse:collapse;width:100%;margin:16px 0"><thead><tr><th style="padding:10px;text-align:right;border-bottom:2px solid #222">المنتج</th><th style="padding:10px;border-bottom:2px solid #222">الكمية</th><th style="padding:10px;text-align:left;border-bottom:2px solid #222">السعر</th></tr></thead><tbody>${rows}</tbody></table>
 
@@ -192,8 +185,8 @@ function buildCustomerEmailHtml(opts: {
 
   <!-- English Section -->
   <div dir="ltr" style="padding:20px">
-    <h2 style="color:#1a1a1a;margin-bottom:8px">Order Confirmed</h2>
-    <p>Hi <strong>${escapeHtml(customerName)}</strong>, your order <strong>#${escapeHtml(orderNumber)}</strong> has been confirmed and is being prepared for delivery.</p>
+    <h2 style="color:#1a1a1a;margin-bottom:8px">${awaitingPayment ? 'Order Received — Awaiting Payment' : 'Order Confirmed'}</h2>
+    <p>Hi <strong>${escapeHtml(customerName)}</strong>, we received your order <strong>#${escapeHtml(orderNumber)}</strong>. ${awaitingPayment ? 'Payment has not been confirmed yet. Your order will be prepared once payment is complete.' : 'Your order has been confirmed and is being prepared for delivery.'}</p>
 
     <table style="border-collapse:collapse;width:100%;margin:16px 0"><thead><tr><th style="padding:10px;text-align:left;border-bottom:2px solid #222">Product</th><th style="padding:10px;border-bottom:2px solid #222">Qty</th><th style="padding:10px;text-align:right;border-bottom:2px solid #222">Price</th></tr></thead><tbody>${rowsEn}</tbody></table>
 
@@ -303,7 +296,7 @@ async function notifyWhatsApp(text: string) {
       const cleanPhone = phone.replace(/^\+/, '')
       const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(apikey)}`
       try {
-        const res = await fetch(url, { method: 'GET' })
+        const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) })
         if (!res.ok) {
           console.error('CallMeBot WhatsApp failed', {
             phone,
@@ -330,6 +323,7 @@ export async function sendOrderEmails(orderId: string): Promise<EmailResult> {
   const loaded = await loadOrder(orderId)
   if (!loaded) {
     console.error('sendOrderEmails: order not found', { orderId })
+    result.customerEmailError = result.adminEmailError = 'Order not found'
     return result
   }
 
@@ -362,14 +356,17 @@ export async function sendOrderEmails(orderId: string): Promise<EmailResult> {
   const adminEmail = process.env.STORE_OWNER_EMAIL
   if (!apiKey || !from || !adminEmail) {
     console.error('sendOrderEmails: email service not configured')
+    result.customerEmailError = result.adminEmailError = 'Email service not configured'
     return result
   }
 
   const resend = new Resend(apiKey)
 
-  // 2. Send customer email (atomic claim)
-  const customerClaimed = await claimCustomerEmail(orderId)
-  if (customerClaimed) {
+  // 2. Each recipient is independent: a customer failure must not block admin.
+  let customerNewlySent = false
+  if (order.customer_email_notified_at) {
+    result.customerEmailSent = true
+  } else {
     try {
       const customerHtml = buildCustomerEmailHtml({
         customerName,
@@ -389,30 +386,30 @@ export async function sendOrderEmails(orderId: string): Promise<EmailResult> {
         hasMfPayment: Boolean(order.mf_payment_id),
       })
 
-      const { error } = await resend.emails.send({
-        from,
-        to: [order.guest_email],
-        subject: `Order confirmed ${shortOrderNo} — Doha Roastery`,
-        html: customerHtml,
+      const delivery = await deliverOrderEmail({
+        notifiedAt: order.customer_email_notified_at,
+        send: () => resend.emails.send({
+          from,
+          to: [order.guest_email],
+          subject: `${paymentMethod === 'card' && order.status !== 'paid' ? 'Order received' : 'Order confirmed'} ${shortOrderNo} — Doha Roastery`,
+          html: customerHtml,
+        }, { idempotencyKey: `order/${orderId}/customer` }),
+        markSent: () => markEmailSent(orderId, 'customer'),
       })
-
-      if (error) {
-        console.error('Customer email failed', { orderId, error })
-        await releaseCustomerEmail(orderId)
-        result.customerEmailError = error.message ?? 'Unknown error'
-      } else {
-        result.customerEmailSent = true
-      }
+      result.customerEmailSent = delivery.sent
+      result.customerEmailError = delivery.error
+      customerNewlySent = delivery.newlySent
+      if (delivery.error) console.error('Customer email failed', { orderId, error: delivery.error })
     } catch (e) {
       console.error('Customer email exception', { orderId, error: e })
-      await releaseCustomerEmail(orderId)
       result.customerEmailError = e instanceof Error ? e.message : 'Exception'
     }
   }
 
-  // 3. Send admin email (atomic claim)
-  const adminClaimed = await claimAdminEmail(orderId)
-  if (adminClaimed) {
+  // 3. Send admin email even when card payment has not yet completed.
+  if (order.admin_email_notified_at) {
+    result.adminEmailSent = true
+  } else {
     try {
       const adminHtml = buildAdminEmailHtml({
         orderNumber: orderNumberDisplay,
@@ -433,35 +430,33 @@ export async function sendOrderEmails(orderId: string): Promise<EmailResult> {
         notes,
       })
 
-      const { error } = await resend.emails.send({
-        from,
-        to: [adminEmail],
-        subject: `New order ${shortOrderNo} — ${money(order.total)} QAR`,
-        html: adminHtml,
+      const delivery = await deliverOrderEmail({
+        notifiedAt: order.admin_email_notified_at,
+        send: () => resend.emails.send({
+          from,
+          to: [adminEmail],
+          subject: `New order ${shortOrderNo} — ${money(order.total)} QAR`,
+          html: adminHtml,
+        }, { idempotencyKey: `order/${orderId}/admin` }),
+        markSent: () => markEmailSent(orderId, 'admin'),
       })
-
-      if (error) {
-        console.error('Admin email failed', { orderId, error })
-        await releaseAdminEmail(orderId)
-        result.adminEmailError = error.message ?? 'Unknown error'
-      } else {
-        result.adminEmailSent = true
-      }
+      result.adminEmailSent = delivery.sent
+      result.adminEmailError = delivery.error
+      if (delivery.error) console.error('Admin email failed', { orderId, error: delivery.error })
     } catch (e) {
       console.error('Admin email exception', { orderId, error: e })
-      await releaseAdminEmail(orderId)
       result.adminEmailError = e instanceof Error ? e.message : 'Exception'
     }
   }
 
   // 4. WhatsApp notification (best-effort, no dedup needed — rate-limited by CallMeBot)
-  if (customerClaimed && result.customerEmailSent) {
+  if (customerNewlySent) {
     const waLines = [
       `Order ${shortOrderNo}`,
       customerName,
       phone ? `Phone: ${phone}` : null,
       `Address: ${fullAddress || '—'}`,
-      `${paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card (paid)'}`,
+      `${paymentMethod === 'cod' ? 'Cash on Delivery' : `Card (${paymentStatusLabel(order.status)})`}`,
       `${money(order.total)} QAR`,
     ]
       .filter(Boolean)

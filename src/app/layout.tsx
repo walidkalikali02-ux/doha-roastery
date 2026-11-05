@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import FloatingWhatsAppButton from "@/components/FloatingWhatsAppButton";
+import StorefrontRefresh from "@/components/StorefrontRefresh";
 import localFont from "next/font/local";
 import { safeJsonLd } from "@/lib/json-ld";
 import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_NAME_AR, SITE_URL } from "@/lib/seo";
@@ -127,6 +128,7 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               {children}
+              <StorefrontRefresh />
               <FloatingWhatsAppButton />
             </CartProvider>
           </AuthProvider>

@@ -6,6 +6,8 @@ import { formatOrderNumber } from '@/lib/display-text'
 import { fetchAdminOrders } from '@/lib/admin-orders'
 import { supabase } from '@/lib/supabase'
 import { Order } from '@/lib/types'
+import { useAuth } from '@/contexts/AuthContext'
+import { adminFetch } from '@/lib/admin-fetch'
 
 interface OrderItem {
   id: string
@@ -50,7 +52,10 @@ function formatDate(iso: string) {
 
 export default function AdminOrdersClient({ initialOrders }: Props) {
   const { t } = useLang()
+  const { session } = useAuth()
   const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [retryingEmail, setRetryingEmail] = useState(false)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<string>('all')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -60,11 +65,26 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
   const drawerRef = useRef<HTMLDivElement>(null)
 
   const refreshOrders = useCallback(async () => {
-    const next = await fetchAdminOrders()
-    setOrders(next)
-  }, [])
+    if (!session) return
+    try {
+      const next = await fetchAdminOrders()
+      setOrders(next)
+      setSelectedOrder((prev) => prev ? next.find((order) => order.id === prev.id) ?? null : null)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error))
+    }
+  }, [session])
 
-  useEffect(() => { setOrders(initialOrders) }, [initialOrders])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshOrders() }, 0)
+    const interval = window.setInterval(() => { if (document.visibilityState === 'visible') void refreshOrders() }, 30_000)
+    window.addEventListener('focus', refreshOrders)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshOrders)
+    }
+  }, [refreshOrders])
 
   useEffect(() => {
     const channel = supabase
@@ -91,9 +111,12 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
     setItems([])
     setItemsLoading(true)
     try {
-      const res = await fetch(`/api/admin/orders?id=${order.id}`)
+      const res = await adminFetch(`/api/admin/orders?id=${order.id}`)
       const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
       setItems(json.data ?? [])
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error))
     } finally {
       setItemsLoading(false)
     }
@@ -141,18 +164,36 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
   async function updateStatus(id: string, status: Order['status']) {
     setUpdating(true)
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       })
       const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
       if (res.ok && json.data) {
         setOrders((prev) => prev.map((o) => o.id === id ? json.data as Order : o))
         setSelectedOrder(json.data as Order)
       }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error))
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function retryMissingEmails(orderId: string) {
+    setRetryingEmail(true)
+    try {
+      const response = await adminFetch('/api/admin/order-emails', { method: 'POST', body: JSON.stringify({ orderId }), signal: AbortSignal.timeout(60_000) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? result.customerEmailError ?? result.adminEmailError ?? 'Email notification is pending automatic retry')
+      setNotice(t('تم إرسال الرسائل الناقصة لخدمة البريد', 'Missing notifications sent to the email provider'))
+      await refreshOrders()
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error))
+    } finally {
+      setRetryingEmail(false)
     }
   }
 
@@ -199,6 +240,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
         </div>
 
         {/* Search */}
+        {notice && <p role="status" className="text-sm text-charcoal mb-3">{notice}</p>}
         <div className="relative mb-4">
           <Search size={15} className="absolute top-1/2 -translate-y-1/2 left-3 text-gray-400" />
           <input
@@ -353,6 +395,16 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
 
               {/* Drawer body */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+                <section className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('إشعارات البريد الإلكتروني', 'Email notifications')}</h3>
+                  <p className="text-sm">{t('العميل', 'Customer')}: {selectedOrder.customer_email_notified_at ? t('تم الإرسال لخدمة البريد', 'Sent to email provider') : t('الإرسال غير مسجل', 'Send not recorded')}</p>
+                  <p className="text-sm">{t('الأدمن', 'Admin')}: {selectedOrder.admin_email_notified_at ? t('تم الإرسال لخدمة البريد', 'Sent to email provider') : t('الإرسال غير مسجل', 'Send not recorded')}</p>
+                  <p className="text-xs text-gray-500">{t('وصول الرسالة لصندوق الوارد يتم التحقق منه في سجل مزود البريد.', 'Inbox delivery is verified in the email provider’s event log.')}</p>
+                  {(!selectedOrder.customer_email_notified_at || !selectedOrder.admin_email_notified_at) && (
+                    <button disabled={retryingEmail} onClick={() => retryMissingEmails(selectedOrder.id)} className="border border-gray-300 px-3 py-2 text-xs disabled:opacity-50">{retryingEmail ? t('جاري الإرسال...', 'Sending...') : t('إعادة محاولة الرسائل غير المسجلة', 'Retry unrecorded notifications')}</button>
+                  )}
+                </section>
 
                 {/* Customer */}
                 <section className="bg-gray-50 rounded-xl p-4 space-y-2">
