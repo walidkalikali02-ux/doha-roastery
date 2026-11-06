@@ -26,6 +26,9 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  // Resolve metadata in the initial head. This also avoids stale/duplicate
+  // canonical tags during client navigation with streamed metadata in Next 16.
+  htmlLimitedBots: /.*/,
   async headers() {
     return [
       {

@@ -34,6 +34,7 @@ export default function Header() {
     { href: '/products', label: t('المنتجات', 'Products') },
     { href: '/honey', label: t('العسل', 'Honey') },
     { href: '/tools', label: t('الأدوات', 'Tools') },
+    { href: lang === 'en' ? '/blog?lang=en' : '/blog', label: t('مجلة القهوة', 'Journal') },
     { href: '/wholesale', label: t('الجملة', 'Wholesale') },
     { href: '/about', label: t('من نحن', 'About') },
     { href: '/contact', label: t('تواصل', 'Contact') },
@@ -43,6 +44,16 @@ export default function Header() {
     await signOut()
     setUserMenu(false)
     router.push('/')
+  }
+
+  function toggleLanguage() {
+    const next = lang === 'ar' ? 'en' : 'ar'
+    const url = new URL(window.location.href)
+    if (url.pathname === '/blog' || url.pathname.startsWith('/blog/')) {
+      if (next === 'en') url.searchParams.set('lang', 'en')
+      else url.searchParams.delete('lang')
+      router.push(`${url.pathname}${url.search}`)
+    } else setLang(next)
   }
 
   return (
@@ -62,7 +73,7 @@ export default function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden xl:flex items-center gap-5">
           {links.map((l) => (
             <Link key={l.href} href={l.href}
               className="text-sm tracking-widest uppercase text-charcoal hover:text-sand transition-colors">
@@ -75,7 +86,7 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {/* Language toggle */}
           <button
-            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            onClick={toggleLanguage}
             className="text-xs tracking-widest uppercase text-charcoal-light hover:text-sand transition-colors border border-sand/40 px-2 py-1"
           >
             {lang === 'ar' ? 'EN' : 'عربي'}
@@ -147,7 +158,7 @@ export default function Header() {
           )}
 
           {/* Mobile menu toggle */}
-          <button className="md:hidden text-charcoal hover:text-sand transition-colors"
+          <button className="xl:hidden text-charcoal hover:text-sand transition-colors"
             onClick={() => setOpen(!open)} aria-label={t('فتح القائمة', 'Toggle menu')}>
             {open ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
           </button>
@@ -156,7 +167,7 @@ export default function Header() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden bg-cream border-t border-sand/20 px-6 py-6 flex flex-col gap-4" dir={dir}>
+        <div className="xl:hidden max-h-[calc(100dvh-6rem)] overflow-y-auto bg-cream border-t border-sand/20 px-6 py-6 flex flex-col gap-4" dir={dir}>
           {links.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
               className="text-sm tracking-widest uppercase text-charcoal hover:text-sand transition-colors">

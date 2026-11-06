@@ -38,6 +38,7 @@ export default function Footer() {
             { href: '/', ar: 'الرئيسية', en: 'Home' },
             { href: '/products', ar: 'المنتجات', en: 'Products' },
             { href: '/honey', ar: 'العسل', en: 'Honey' },
+            { href: dir === 'rtl' ? '/blog' : '/blog?lang=en', ar: 'مجلة القهوة', en: 'Coffee journal' },
             { href: '/wholesale', ar: 'الجملة', en: 'Wholesale' },
             { href: '/about', ar: 'من نحن', en: 'About' },
             { href: '/contact', ar: 'تواصل معنا', en: 'Contact' },

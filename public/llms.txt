@@ -8,6 +8,8 @@
 - Products: https://www.doharoastery.com/products
 - Coffee tools: https://www.doharoastery.com/tools
 - Honey: https://www.doharoastery.com/honey
+- Coffee journal (Arabic): https://www.doharoastery.com/blog
+- Coffee journal (English): https://www.doharoastery.com/blog?lang=en
 - Wholesale program: https://www.doharoastery.com/wholesale
 - About: https://www.doharoastery.com/about
 - Contact: https://www.doharoastery.com/contact
@@ -25,3 +27,11 @@
 
 - English: Doha Roastery
 - Arabic: دوحة روستري
+
+## Coffee knowledge
+
+The coffee journal explains commercial coffee species, notable Arabica varieties,
+growing regions, and processing. Species, varieties, origins, roast levels, and
+brewing methods are distinct concepts. Tasting notes describe possible sensory
+impressions rather than guaranteed flavours or added ingredients. Articles link
+to further reading; they are not an exhaustive botanical catalogue.

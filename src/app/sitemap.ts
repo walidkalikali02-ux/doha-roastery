@@ -1,8 +1,13 @@
 import { MetadataRoute } from 'next'
 import { supabasePublic as supabase } from '@/lib/supabase-public'
 import { SITE_URL } from '@/lib/seo'
+import { getPublishedPosts } from '@/lib/blog'
+import { blogHref } from '@/lib/blog-types'
+
+export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const posts = await getPublishedPosts()
   const { data: products } = await supabase
     .from('ecommerce_products')
     .select('id, name, weight, image_url, updated_at')
@@ -36,6 +41,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/contact`,          lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/wholesale`,        lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE_URL}/terms`,            lastModified: new Date(), changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${SITE_URL}/blog`, changeFrequency: 'weekly', priority: 0.8, alternates: { languages: { ar: `${SITE_URL}/blog`, en: `${SITE_URL}/blog?lang=en` } } },
+    ...posts.flatMap((post) => (['ar', 'en'] as const).map((lang) => ({
+      url: `${SITE_URL}${blogHref(post.slug, lang)}`,
+      lastModified: new Date(post.updated_at), changeFrequency: 'monthly' as const, priority: 0.7,
+      images: [post.image_url.startsWith('/') ? `${SITE_URL}${post.image_url}` : post.image_url],
+      alternates: { languages: { ar: `${SITE_URL}${blogHref(post.slug, 'ar')}`, en: `${SITE_URL}${blogHref(post.slug, 'en')}` } },
+    }))),
     ...productUrls,
   ]
 }

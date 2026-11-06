@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { LayoutDashboard, Package, ShoppingCart, ArrowRight, Loader, Users, ChartNoAxesCombined } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingCart, ArrowRight, Loader, Users, ChartNoAxesCombined, BookOpen } from 'lucide-react'
 import { useLang } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import AdminNotificationBell from '@/components/AdminNotificationBell'
@@ -40,6 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin', icon: LayoutDashboard, label: t('لوحة التحكم', 'Dashboard') },
     { href: '/admin/products', icon: Package, label: t('المنتجات', 'Products') },
     { href: '/admin/orders', icon: ShoppingCart, label: t('الطلبات', 'Orders') },
+    { href: '/admin/blog', icon: BookOpen, label: t('المدونة', 'Blog') },
     { href: '/admin/reports', icon: ChartNoAxesCombined, label: t('تقارير المبيعات', 'Sales reports') },
     { href: '/admin/accounts', icon: Users, label: t('الحسابات', 'Accounts') },
   ]

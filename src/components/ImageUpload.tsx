@@ -18,7 +18,8 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
   const [progress, setProgress] = useState(0)
   const [originalSize, setOriginalSize] = useState(0)
   const [compressedSize, setCompressedSize] = useState(0)
-  const [preview, setPreview] = useState<string | null>(value)
+  const [preview, setPreview] = useState<string | null>(null)
+  const displayImage = preview ?? value
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
@@ -26,9 +27,17 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
     return () => onBusyChange?.(false)
   }, [status, onBusyChange])
 
+  useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview) }
+  }, [preview])
+
   async function handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
       setErrorMsg(t('يرجى رفع صورة فقط', 'Please upload an image file'))
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg(t('الحد الأقصى لحجم الصورة 5 ميغابايت', 'Maximum image size is 5 MB'))
       return
     }
 
@@ -78,6 +87,7 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
       setProgress(100)
       setStatus('done')
       onChange(publicUrl)
+      setPreview(null)
     } catch (error) {
       setStatus('error')
       setErrorMsg(error instanceof Error ? error.message : t('فشل رفع الصورة', 'Image upload failed'))
@@ -124,16 +134,16 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
         style={{ minHeight: 180 }}
       >
         {/* Preview image */}
-        {preview && (
+        {displayImage && (
           <img
-            src={preview}
+            src={displayImage}
             alt="preview"
             className="w-full h-48 object-cover"
           />
         )}
 
         {/* Overlay states */}
-        {status === 'idle' && !preview && (
+        {status === 'idle' && !displayImage && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
             <div className="w-12 h-12 bg-sand/10 flex items-center justify-center">
               <ImageIcon size={22} strokeWidth={1.3} className="text-sand" />
@@ -171,7 +181,7 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
           </div>
         )}
 
-        {status === 'done' && preview && (
+        {status === 'done' && displayImage && (
           <div className="absolute top-2 start-2">
             <span className="flex items-center gap-1 bg-green-700 text-cream text-[10px] tracking-widest uppercase px-2 py-1">
               <CheckCircle size={11} strokeWidth={2} />
@@ -181,9 +191,10 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
         )}
 
         {/* Remove button */}
-        {preview && status !== 'compressing' && status !== 'uploading' && (
+        {displayImage && status !== 'compressing' && status !== 'uploading' && (
           <button
             type="button"
+            aria-label={t('إزالة الصورة', 'Remove image')}
             onClick={(e) => { e.stopPropagation(); remove() }}
             className="absolute top-2 end-2 w-7 h-7 bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
           >
@@ -211,7 +222,7 @@ export default function ImageUpload({ value, onChange, onBusyChange }: Props) {
       )}
 
       {/* Re-upload hint when done */}
-      {status === 'done' && (
+      {status !== 'compressing' && status !== 'uploading' && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}

@@ -76,6 +76,40 @@ Run `npm test` for delivery/catalog regression tests. Run `npx playwright instal
 chromium` once, then `npm run test:e2e` for mocked browser checkout/admin flows.
 Browser tests never create real orders or modify live products.
 
+## Coffee journal and blog management
+
+- Public journal: `/blog` (Arabic), `/blog?lang=en` (English). Article URLs use
+  `/blog/<slug>` and `/blog/<slug>?lang=en`. The URL sets the article language;
+  the header language switch preserves the current article.
+- `/admin/blog` lets verified admins/managers create, preview, edit, publish,
+  unpublish, and delete bilingual articles. It includes cover uploads, five
+  original local illustrations, categories, source links, search, and SEO fields.
+- Apply **only** `supabase/migrations/20261105130000_blog_posts.sql` in the
+  Supabase SQL editor for this existing project. Its migration history differs
+  from the local folder; do not blindly replay older migrations with `db push`.
+  The additive migration installs `blog_posts`, a publication index, RLS, staff
+  write policies, a dedicated role-check helper, and automatic edit timestamps.
+  It uses the existing `profiles.id` and `profiles.role` columns.
+- Then open `/admin/blog` and choose **Import starter articles** once to store
+  the 19 Arabic/English articles. Import skips existing slugs, preserving edits.
+  The original editorial library is readable before the table exists. Once the
+  table exists, only its published rows are shown, even if it is empty. Drafts
+  and deleted posts are never restored by public reads.
+- Public reads use the anonymous client and RLS, never the service role. Admin
+  endpoints verify the current user and role. Saves and deletes check edit
+  timestamps; slugs cannot change after first publication.
+- Article bodies support plain paragraphs, `##` headings, and `-` lists. HTML
+  is escaped. Every publish requires titles, excerpts, body text, and image alt
+  text in both languages. Source URLs and external image URLs require HTTPS.
+- SEO includes per-language canonical/hreflang links, publication metadata,
+  BlogPosting/Breadcrumb JSON-LD, dynamic PNG share cards, and bilingual sitemap
+  entries. Filter/search pages are noindex and canonicalise to the journal.
+- Cover illustrations are original project assets in `public/blog/`; they are
+  editorial, not to-scale botanical diagrams. Starter content covers the main
+  traded species, notable varieties, and growing regions, not every wild species.
+- Run `npm test` and `npm run test:e2e` for access-control, content validation,
+  SEO, rendering, locale switching, mobile layout, and editor regression checks.
+
 ## Google Login
 
 Enable Google under `Authentication > Providers > Google` in Supabase. Add the Supabase callback URL to Google Cloud OAuth credentials:
