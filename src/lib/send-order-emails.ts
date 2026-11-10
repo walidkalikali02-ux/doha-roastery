@@ -131,9 +131,9 @@ function buildItemRowsHtml(items: OrderItem[], dir: 'ltr' | 'rtl') {
       const variant = item.variant_name ? ` — ${escapeHtml(item.variant_name)}` : ''
       const lineTotal = money(item.unit_price * item.quantity)
       if (dir === 'rtl') {
-        return `<tr><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, dir === 'rtl' ? 'ar' : 'en')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:left">${lineTotal} ر.ق</td></tr>`
+        return `<tr><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, 'ar')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:left">${lineTotal} ر.ق</td></tr>`
       }
-      return `<tr><td style="padding:10px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, dir === 'rtl' ? 'ar' : 'en')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${lineTotal} QAR</td></tr>`
+      return `<tr><td style="padding:10px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, 'en')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${lineTotal} QAR</td></tr>`
     })
     .join('')
 }
