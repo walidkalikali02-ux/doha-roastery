@@ -11,6 +11,7 @@ type OrderItem = {
   quantity: number
   unit_price: number
   total_price: number
+  notes: string | null
 }
 
 type OrderRow = {
@@ -93,7 +94,7 @@ async function loadOrder(orderId: string): Promise<{
 
   const { data: items, error: itemsError } = await supabase
     .from('order_items')
-    .select('product_name, variant_name, quantity, unit_price, total_price')
+    .select('product_name, variant_name, quantity, unit_price, total_price, notes')
     .eq('order_id', orderId)
 
   if (itemsError) throw new Error(`Could not load order items: ${itemsError.message}`)
@@ -115,15 +116,24 @@ async function markEmailSent(orderId: string, recipient: 'customer' | 'admin') {
 
 // ─── Item Rows (shared HTML fragment) ────────────────────────────────────────
 
+function itemNoteHtml(item: OrderItem, lang: 'ar' | 'en') {
+  const note = item.notes?.trim()
+  if (!note) return ''
+  const label = lang === 'ar' ? 'ملاحظة المنتج' : 'Product note'
+  // Escape customer input before preserving line breaks inside the email.
+  return `<div style="margin-top:5px;font-size:12px;color:#7c4a03;line-height:1.6"><strong>${label}:</strong> ${escapeHtml(note).replace(/\r?\n/g, '<br>')}</div>`
+}
+
+
 function buildItemRowsHtml(items: OrderItem[], dir: 'ltr' | 'rtl') {
   return items
     .map((item) => {
       const variant = item.variant_name ? ` — ${escapeHtml(item.variant_name)}` : ''
       const lineTotal = money(item.unit_price * item.quantity)
       if (dir === 'rtl') {
-        return `<tr><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(item.product_name)}${variant}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:left">${lineTotal} ر.ق</td></tr>`
+        return `<tr><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, dir === 'rtl' ? 'ar' : 'en')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:left">${lineTotal} ر.ق</td></tr>`
       }
-      return `<tr><td style="padding:10px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${lineTotal} QAR</td></tr>`
+      return `<tr><td style="padding:10px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, dir === 'rtl' ? 'ar' : 'en')}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">${lineTotal} QAR</td></tr>`
     })
     .join('')
 }
@@ -240,7 +250,7 @@ function buildAdminEmailHtml(opts: {
   const rows = items
     .map((item) => {
       const variant = item.variant_name ? ` (${escapeHtml(item.variant_name)})` : ''
-      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${money(item.unit_price)} QAR</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${money(item.total_price)} QAR</td></tr>`
+      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(item.product_name)}${variant}${itemNoteHtml(item, 'en')}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${money(item.unit_price)} QAR</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${money(item.total_price)} QAR</td></tr>`
     })
     .join('')
 

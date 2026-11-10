@@ -17,6 +17,7 @@ interface OrderItem {
   quantity: number | null
   unit_price: number | null
   total_price: number | null
+  notes: string | null
 }
 
 interface Props { initialOrders: Order[] }
@@ -135,7 +136,7 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
     const statusLabel = STATUS_LABELS[order.status]?.en ?? order.status
 
     const itemLines = orderItems.length
-      ? orderItems.map((i) => `  • ${i.product_name ?? '—'}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — ${((i.unit_price ?? 0) * (i.quantity ?? 1)).toFixed(2)} QAR`).join('\n')
+      ? orderItems.map((i) => `  • ${i.product_name ?? '—'}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — ${((i.unit_price ?? 0) * (i.quantity ?? 1)).toFixed(2)} QAR${i.notes?.trim() ? `\n    Product note: ${i.notes.trim()}` : ''}`).join('\n')
       : '  —'
 
     const lines = [
@@ -459,6 +460,11 @@ export default function AdminOrdersClient({ initialOrders }: Props) {
                             <p className="text-xs text-gray-400 mt-0.5">
                               {[item.variant_name, item.sku].filter(Boolean).join(' · ')}
                             </p>
+                            {item.notes?.trim() && (
+                              <p className="mt-2 text-xs text-amber-900 whitespace-pre-wrap break-words">
+                                <span className="font-semibold">{t('ملاحظة المنتج:', 'Product note:')}</span> {item.notes}
+                              </p>
+                            )}
                           </div>
                           <div className="flex-shrink-0 text-right ml-4">
                             <p className="text-sm text-gray-700">x{item.quantity}</p>

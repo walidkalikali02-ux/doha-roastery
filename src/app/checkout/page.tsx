@@ -119,6 +119,7 @@ function CheckoutInner() {
             quantity: item.quantity,
             weight: item.weight ?? null,
             grind: item.grind ?? null,
+            notes: item.notes?.trim() ?? '',
           })),
         }),
       })
@@ -437,6 +438,7 @@ function CheckoutInner() {
                             {item.weight && <span>{localizeWeight(item.weight, lang)} · </span>}
                             <bdi dir="ltr">× {item.quantity}</bdi>
                           </p>
+                          {item.notes && <p className="text-xs text-amber-800 mt-1 whitespace-pre-wrap break-words">{t('ملاحظة المنتج:', 'Product note:')} {item.notes}</p>}
                         </div>
                         <p className="text-sm text-charcoal flex-shrink-0">
                           <bdi dir="ltr">{(item.price * item.quantity).toFixed(2)}</bdi> {t('ر.ق', 'QAR')}
@@ -504,9 +506,10 @@ function CheckoutInner() {
                            <bdi dir="ltr">{item.quantity}</bdi>
                         </span>
                       </div>
-                      <p className="flex-1 text-xs text-charcoal line-clamp-1">
-                         {lang === 'ar' && item.nameAr ? item.nameAr : item.name}{item.weight ? ` – ${localizeWeight(item.weight, lang)}` : ''}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-charcoal line-clamp-1">{lang === 'ar' && item.nameAr ? item.nameAr : item.name}{item.weight ? ` – ${localizeWeight(item.weight, lang)}` : ''}</p>
+                        {item.notes && <p className="text-xs text-amber-800 mt-1 whitespace-pre-wrap break-words">{t('ملاحظة المنتج:', 'Product note:')} {item.notes}</p>}
+                      </div>
                       <p className="text-xs text-charcoal flex-shrink-0">
                          <bdi dir="ltr">{(item.price * item.quantity).toFixed(2)}</bdi>
                       </p>

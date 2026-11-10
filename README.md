@@ -29,6 +29,20 @@ If email confirmation is required, configure Resend as the Supabase Auth SMTP pr
 
 Supabase Auth stores the account and manages the session; Resend only delivers the confirmation email.
 
+## Product notes in orders
+
+Customers can enter an optional note on each product. Notes are submitted by
+checkout as `items[].notes`, validated to a maximum of 1000 characters,
+written into `order_items.notes` by `place_order`, and shown on each order line
+in both the customer/admin emails and the admin order details/WhatsApp share.
+Delivery notes in `orders.shipping_address.notes` remain separate.
+
+**Deployment:** Apply `supabase/migrations/20261110110000_order_item_product_notes.sql`
+to the existing Supabase project before deploying the changed Next.js code.
+Do not blindly replay older migrations: this production database has a different
+migration history. Historical product notes were never stored and cannot be
+recovered retroactively.
+
 ## Order notifications
 
 - Checkout creates orders through `/api/orders`, which schedules customer and admin

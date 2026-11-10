@@ -122,7 +122,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
         nameAr:    product.name_ar,
         weight:    itemWeight,
         grind:     isCoffeeBeans ? grind : '',
-        notes,
+        notes: notes.trim(),
         price:     itemPrice,
         image_url: product.image_url,
       })
@@ -309,6 +309,7 @@ export default function ProductDetailClient({ product, weightVariants, related }
             </label>
             <textarea
               rows={2}
+              maxLength={1000}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t(

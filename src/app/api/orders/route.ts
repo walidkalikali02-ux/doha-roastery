@@ -23,6 +23,7 @@ const Schema = z.object({
     quantity: z.number().int().positive().max(1000),
     weight: z.string().max(100).nullable(),
     grind: z.string().max(100).nullable(),
+    notes: z.string().trim().max(1000).optional().default(''),
   })).min(1).max(100),
 })
 

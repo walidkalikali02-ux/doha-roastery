@@ -130,17 +130,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, ready])
 
   function addItem(item: AddItemInput) {
-    const cartKey = `${item.id}-${item.grind}`
+    // Different notes for the same product must remain separate order lines.
+    const note = item.notes.trim()
+    const cartKey = `${item.id}-${item.grind}${note ? `-${encodeURIComponent(note)}` : ''}`
     setItems((prev) => {
       const existing = prev.find((i) => i.cartKey === cartKey)
+      const normalizedItem = { ...item, notes: note }
       if (existing) {
         return prev.map((i) =>
           i.cartKey === cartKey
-            ? { ...i, ...item, quantity: i.quantity + 1, notes: item.notes || i.notes }
+            ? { ...i, ...normalizedItem, quantity: i.quantity + 1 }
             : i
         )
       }
-      return [...prev, { ...item, cartKey, quantity: 1 }]
+      return [...prev, { ...normalizedItem, cartKey, quantity: 1 }]
     })
   }
 

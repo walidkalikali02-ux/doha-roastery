@@ -56,7 +56,7 @@ test('order email integration', async (t) => {
       return Response.json(order)
     }
     if (url.includes('/rest/v1/order_items')) {
-      return Response.json([{ product_name: 'Coffee', variant_name: null, quantity: 1, unit_price: 150, total_price: 150 }])
+      return Response.json([{ product_name: 'Coffee', variant_name: null, quantity: 1, unit_price: 150, total_price: 150, notes: 'Extra fine <no milk>\nPack separately' }])
     }
     throw new Error(`Unexpected request: ${url}`)
   }
@@ -72,6 +72,13 @@ test('order email integration', async (t) => {
       assert.match(String(customer.html), /بانتظار الدفع/)
       assert.doesNotMatch(String(customer.html), /is being prepared for delivery/)
       assert.match(String(sent.get(`order/${order.id}/admin`)?.html), /Pending/)
+      for (const recipient of ['customer', 'admin']) {
+        const html = String(sent.get(`order/${order.id}/${recipient}`)?.html)
+        assert.match(html, /Extra fine &lt;no milk&gt;<br>Pack separately/)
+        assert.doesNotMatch(html, /<no milk>/)
+      }
+      assert.match(String(customer.html), /ملاحظة المنتج/)
+      assert.match(String(sent.get(`order/${order.id}/admin`)?.html), /Product note/)
     })
 
     await t.test('concurrent callback and webhook share recipient idempotency keys', async () => {

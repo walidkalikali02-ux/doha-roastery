@@ -26,7 +26,7 @@ async function seedSession(page: Page, withCart = false) {
   }, {
     key: `sb-${supabaseHost}-auth-token`,
     session: { access_token: accessToken, refresh_token: 'test-refresh', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user },
-    cart: withCart ? [{ id: productId, cartKey: `${productId}-filter`, name: 'Old coffee', price: 10, weight: '100g', grind: 'filter', notes: '', image_url: null, quantity: 2 }] : null,
+    cart: withCart ? [{ id: productId, cartKey: `${productId}-filter`, name: 'Old coffee', price: 10, weight: '100g', grind: 'filter', notes: 'Pack separately', image_url: null, quantity: 2 }] : null,
   })
   // All browser Supabase traffic is mocked: these tests never mutate live data.
   await page.route('https://*.supabase.co/**', async (route) => {
@@ -94,9 +94,10 @@ test('checkout refreshes stored prices and submits the explicitly entered email 
   await page.locator('select').selectOption('doha')
   await page.getByRole('button', { name: 'Next: Review' }).click()
   await expect(page.getByText('60.00', { exact: true })).toBeVisible()
+  await expect(page.getByText('Product note: Pack separately').first()).toBeVisible()
   await page.getByRole('button', { name: 'Place Order', exact: true }).click()
   await expect(page).toHaveURL(/checkout\/success\?order=TEST-ORDER/, { timeout: 20_000 })
-  expect(submitted).toMatchObject({ email: 'customer.orders@example.test', items: [{ product_id: productId, quantity: 2 }] })
+  expect(submitted).toMatchObject({ email: 'customer.orders@example.test', items: [{ product_id: productId, quantity: 2, notes: 'Pack separately' }] })
 })
 
 test('cart detects changed prices and unpublished products when returning to the tab', async ({ page }) => {
@@ -122,7 +123,7 @@ test('admin sees recipient email tracking and can retry a missing notification',
     created_at: '2026-10-25T17:00:00Z', customer_email_notified_at: '2026-10-25T17:01:00Z',
     admin_email_notified_at: null as string | null,
   }
-  await page.route('**/api/admin/orders*', (route) => route.fulfill({ json: { data: route.request().url().includes('?id=') ? [] : [order] } }))
+  await page.route('**/api/admin/orders*', (route) => route.fulfill({ json: { data: route.request().url().includes('?id=') ? [{ id: productId, product_name: 'Regression Coffee', variant_name: '250g', sku: 'TEST', quantity: 1, unit_price: 25, total_price: 25, notes: 'Use finer grind' }] : [order] } }))
   await page.route('**/api/admin/order-emails', async (route) => {
     expect(route.request().postDataJSON()).toEqual({ orderId: userId })
     order.admin_email_notified_at = '2026-10-25T17:02:00Z'
@@ -130,6 +131,8 @@ test('admin sees recipient email tracking and can retry a missing notification',
   })
   await page.goto('/admin/orders')
   await page.getByRole('button').filter({ hasText: '#2001' }).click()
+  await expect(page.getByText('Product note:')).toBeVisible()
+  await expect(page.getByText(/Use finer grind/)).toBeVisible()
   await expect(page.getByText('Customer: Sent to email provider', { exact: true })).toBeVisible()
   const retry = page.getByRole('button', { name: 'Retry unrecorded notifications' })
   await retry.click()

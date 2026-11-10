@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('order_items')
-    .select('id, product_name, variant_name, sku, quantity, unit_price, total_price')
+    .select('id, product_name, variant_name, sku, quantity, unit_price, total_price, notes')
     .eq('order_id', id)
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
